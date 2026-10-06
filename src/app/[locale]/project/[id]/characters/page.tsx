@@ -19,6 +19,9 @@ interface Character {
   referenceImageHistory: string | null;
   scope: string;
   episodeId: string | null;
+  canonLockEnabled?: number;
+  canonLockVersion?: number;
+  canonVisualLock?: string | null;
 }
 
 interface Episode {
@@ -164,6 +167,9 @@ export default function CharactersPage({
                 referenceImage={char.referenceImage}
                 referenceImageHistory={char.referenceImageHistory}
                 scope={char.scope}
+                canonLockEnabled={char.canonLockEnabled}
+                canonLockVersion={char.canonLockVersion}
+                canonVisualLock={char.canonVisualLock}
                 onUpdate={fetchData}
                 onDelete={() => handleDelete(char.id, char.name)}
               />
@@ -218,6 +224,9 @@ export default function CharactersPage({
                         referenceImage={char.referenceImage}
                         referenceImageHistory={char.referenceImageHistory}
                         scope={char.scope}
+                        canonLockEnabled={char.canonLockEnabled}
+                        canonLockVersion={char.canonLockVersion}
+                        canonVisualLock={char.canonVisualLock}
                         episodeName={`EP.${String(ep.sequence).padStart(2, "0")} ${ep.title}`}
                         onUpdate={fetchData}
                         onPromote={() => handlePromote(char.id)}
