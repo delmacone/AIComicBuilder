@@ -12,6 +12,7 @@ import type { Task } from "@/lib/task-queue";
 import { getActiveAsset, insertAssetVersion, patchAsset } from "@/lib/shot-asset-utils";
 import { checkCanonContinuity, type CanonVisualLock } from "@/lib/pipeline/blackfist-continuity-check";
 import { buildCanonPromptBlock } from "@/lib/pipeline/blackfist-canon-context";
+import { buildVisualStylePrompt } from "@/lib/pipeline/blackfist-visual-style";
 
 export async function handleFrameGenerate(task: Task) {
   const payload = task.payload as {
@@ -83,6 +84,9 @@ export async function handleFrameGenerate(task: Task) {
   const frameFirstSlots = await resolveSlotContents("frame_generate_first", { userId, projectId });
   const frameLastSlots = await resolveSlotContents("frame_generate_last", { userId, projectId });
 
+  const [projectRecord] = await db.select().from(projects).where(eq(projects.id, payload.projectId));
+  const visualStylePrompt = projectRecord ? buildVisualStylePrompt(projectRecord) : "";
+
   // Fetch color palette from project (or episode)
   let colorPalette = "";
   if (shot.episodeId) {
@@ -90,8 +94,7 @@ export async function handleFrameGenerate(task: Task) {
     if (episode?.colorPalette) colorPalette = episode.colorPalette;
   }
   if (!colorPalette) {
-    const [project] = await db.select().from(projects).where(eq(projects.id, payload.projectId));
-    if (project?.colorPalette) colorPalette = project.colorPalette;
+    if (projectRecord?.colorPalette) colorPalette = projectRecord.colorPalette;
   }
 
   // Build composition suffix
@@ -193,6 +196,7 @@ export async function handleFrameGenerate(task: Task) {
       : inferredChars;
   const charRefImages = relevantChars.map((c) => c.referenceImage as string);
   let canonPromptBlock = buildCanonPromptBlock(relevantChars);
+  if (visualStylePrompt) canonPromptBlock += `\n\n${visualStylePrompt}`;
 
   // Bind shot costume overrides into the canon prompt as an explicit visual rule.
   // The existing costume table remains the source of truth; BlackFist adds
