@@ -21,12 +21,19 @@ export async function handleVideoAssemble(task: Task) {
   // unapproved canon shots into the final episode.
   const projectCharacters = await db.select().from(characters)
     .where(eq(characters.projectId, payload.projectId));
-  const usesCanonLocks = projectCharacters.some((c) => c.canonLockEnabled === 1);
-  if (usesCanonLocks) {
-    const blocked = projectShots.filter((s) => s.continuityStatus !== "passed");
+  const lockedCanonNames = projectCharacters
+    .filter((c) => c.canonLockEnabled === 1)
+    .map((c) => c.name.toLowerCase());
+  if (lockedCanonNames.length > 0) {
+    const blocked = projectShots.filter((s) => {
+      const shotText = [s.prompt, s.videoScript, s.motionScript]
+        .filter(Boolean).join("\n").toLowerCase();
+      const containsLockedCanon = lockedCanonNames.some((name) => shotText.includes(name));
+      return containsLockedCanon && s.continuityStatus !== "passed";
+    });
     if (blocked.length > 0) {
       throw new Error(
-        `BlackFist final assembly blocked: ${blocked.length} shot(s) have not passed continuity (${blocked.map((s) => `#${s.sequence}:${s.continuityStatus}`).join(", ")}).`
+        `BlackFist final assembly blocked: ${blocked.length} canon shot(s) have not passed continuity (${blocked.map((s) => `#${s.sequence}:${s.continuityStatus}`).join(", ")}).`
       );
     }
   }
