@@ -178,6 +178,9 @@ export default function EpisodeCharactersPage() {
               visualHint={char.visualHint ?? null}
               referenceImage={char.referenceImage}
               referenceImageHistory={char.referenceImageHistory}
+              canonLockEnabled={char.canonLockEnabled}
+              canonLockVersion={char.canonLockVersion}
+              canonVisualLock={char.canonVisualLock}
               onUpdate={() => fetchProject(project.id, useProjectStore.getState().currentEpisodeId!)}
               batchGenerating={generatingImages}
               scope={char.scope}
