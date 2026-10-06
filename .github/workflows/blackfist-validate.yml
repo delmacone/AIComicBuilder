@@ -17,6 +17,6 @@ jobs:
           node-version: 20
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Typecheck\n        run: pnpm exec tsc --noEmit 2>&1 | tee typecheck.log\n      - name: Upload typecheck report\n        if: always()\n        uses: actions/upload-artifact@v4\n        with:\n          name: blackfist-typecheck\n          path: typecheck.log
+      - name: Typecheck\n        run: |\n          set -o pipefail\n          pnpm exec tsc --noEmit 2>&1 | tee typecheck.log\n      - name: Upload typecheck report\n        if: always()\n        uses: actions/upload-artifact@v4\n        with:\n          name: blackfist-typecheck\n          path: typecheck.log
       - run: pnpm lint
       - run: pnpm build
