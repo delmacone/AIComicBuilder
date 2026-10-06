@@ -70,6 +70,10 @@ export interface Shot {
   musicCue?: string;
   qualityScore?: number;
   qualityIssues?: string[];
+  continuityStatus?: "pending" | "passed" | "failed" | "review_required";
+  continuityScore?: number;
+  continuityIssues?: string | string[];
+  continuityRetryCount?: number;
   isStale?: boolean;
   status: string;
   dialogues: Dialogue[];
