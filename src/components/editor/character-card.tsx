@@ -29,6 +29,9 @@ interface CharacterCardProps {
   onPromote?: () => void;
   onDelete?: () => void;
   episodeName?: string;
+  canonLockEnabled?: number;
+  canonLockVersion?: number;
+  canonVisualLock?: string | null;
 }
 
 export function CharacterCard({
@@ -45,6 +48,9 @@ export function CharacterCard({
   onPromote,
   onDelete,
   episodeName,
+  canonLockEnabled = 0,
+  canonLockVersion = 1,
+  canonVisualLock,
 }: CharacterCardProps) {
   const t = useTranslations();
   const getModelConfig = useModelStore((s) => s.getModelConfig);
@@ -63,6 +69,7 @@ export function CharacterCard({
   const [lightbox, setLightbox] = useState(false);
   const [copied, setCopied] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [canonBusy, setCanonBusy] = useState(false);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const imageGuard = useModelGuard("image");
   const isGenerating = generating || (!!batchGenerating && !referenceImage);
@@ -109,6 +116,33 @@ export function CharacterCard({
     }
     setGenerating(false);
     onUpdate();
+  }
+
+  async function handleCanonLock() {
+    if (!referenceImage) {
+      toast.error("Approve or upload a reference image first.");
+      return;
+    }
+    setCanonBusy(true);
+    try {
+      let existing: Record<string, unknown> = {};
+      try { existing = JSON.parse(canonVisualLock || "{}"); } catch {}
+      const response = await apiFetch(`/api/projects/${projectId}/characters/${id}/canon-lock`, {
+        method: canonLockEnabled ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: canonLockEnabled ? undefined : JSON.stringify(existing),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || "Canon lock update failed");
+      }
+      toast.success(canonLockEnabled ? "Canon Visual Lock released" : "Canon Visual Lock approved");
+      onUpdate();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Canon lock update failed");
+    } finally {
+      setCanonBusy(false);
+    }
   }
 
   async function handleUploadImage(e: React.ChangeEvent<HTMLInputElement>) {
@@ -254,6 +288,24 @@ export function CharacterCard({
           placeholder={t("character.visualHint")}
           className="h-8 text-xs text-muted-foreground"
         />
+        <div className="flex items-center justify-between rounded-lg border border-[--border-subtle] px-3 py-2">
+          <div>
+            <div className="text-xs font-semibold">BlackFist Canon Visual Lock</div>
+            <div className="text-[10px] text-muted-foreground">
+              {canonLockEnabled ? `LOCKED · v${canonLockVersion}` : "UNLOCKED · approve reference before production"}
+            </div>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant={canonLockEnabled ? "outline" : "default"}
+            disabled={canonBusy || !referenceImage}
+            onClick={handleCanonLock}
+          >
+            {canonBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+            {canonLockEnabled ? "Unlock" : "Approve & Lock"}
+          </Button>
+        </div>
         <div className="space-y-2">
             <InlineModelPicker capability="image" value={imageModelRef} onChange={setImageModelRef} />
             <div className="flex gap-2">
