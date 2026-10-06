@@ -298,8 +298,23 @@ export async function handleFrameGenerate(task: Task) {
         throw new Error(`BlackFist continuity review required for ${c.name}: invalid canon lock`);
       }
       lock.characterName ||= c.name;
-      const result = await checkCanonContinuity(continuityAI, lastFramePath, c.referenceImage as string, lock);
-      continuityResults.push({ character: c.name, ...result });
+      // Inspect BOTH endpoints of the generated shot. A drifting first frame
+      // must not be hidden by a good last frame (or vice versa).
+      const firstResult = await checkCanonContinuity(continuityAI, firstFramePath, c.referenceImage as string, lock);
+      const lastResult = await checkCanonContinuity(continuityAI, lastFramePath, c.referenceImage as string, lock);
+      const rank = { passed: 0, failed: 1, review_required: 2 } as const;
+      const worstStatus = rank[firstResult.status] >= rank[lastResult.status] ? firstResult.status : lastResult.status;
+      continuityResults.push({
+        character: c.name,
+        status: worstStatus,
+        score: Math.min(firstResult.score, lastResult.score),
+        identityScore: Math.min(firstResult.identityScore, lastResult.identityScore),
+        costumeScore: Math.min(firstResult.costumeScore, lastResult.costumeScore),
+        issues: [
+          ...firstResult.issues.map((issue) => `first frame: ${issue}`),
+          ...lastResult.issues.map((issue) => `last frame: ${issue}`),
+        ],
+      });
     }
 
     const reviewRequired = continuityResults.some((r) => r.status === "review_required");
