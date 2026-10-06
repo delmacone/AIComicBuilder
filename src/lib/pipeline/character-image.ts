@@ -18,6 +18,13 @@ export async function handleCharacterImage(task: Task) {
     throw new Error("Character not found");
   }
 
+  // Approved BlackFist canon art is immutable during ordinary generation.
+  // A redesign must be explicitly unlocked first so automation cannot silently
+  // replace the reference used by every downstream continuity check.
+  if (character.canonLockEnabled === 1) {
+    throw new Error(`Canon Visual Lock is enabled for ${character.name}. Unlock before generating a replacement reference.`);
+  }
+
   const ai = resolveImageProvider(payload.modelConfig);
   const prompt = buildCharacterTurnaroundPrompt(character.description || character.name, character.name);
 
