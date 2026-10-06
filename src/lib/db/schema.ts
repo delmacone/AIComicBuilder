@@ -112,6 +112,26 @@ export const storyboardVersions = sqliteTable("storyboard_versions", {
   }),
 });
 
+export const virtualSets = sqliteTable("virtual_sets", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description").default(""),
+  location: text("location").default(""),
+  timeOfDay: text("time_of_day").default(""),
+  weather: text("weather").default(""),
+  lighting: text("lighting").default(""),
+  layoutState: text("layout_state").default("{}"),
+  propsState: text("props_state").default("[]"),
+  damageState: text("damage_state").default("[]"),
+  referenceImages: text("reference_images").default("[]"),
+  visualStylePreset: text("visual_style_preset").default(""),
+  continuityLockEnabled: integer("continuity_lock_enabled").notNull().default(1),
+  continuityLockVersion: integer("continuity_lock_version").notNull().default(1),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+});
+
 export const scenes = sqliteTable("scenes", {
   id: text("id").primaryKey(),
   episodeId: text("episode_id")
@@ -128,6 +148,7 @@ export const scenes = sqliteTable("scenes", {
   // injuries and other visual facts that must survive across shots.
   continuityState: text("continuity_state").default("{}"),
   continuityStateVersion: integer("continuity_state_version").notNull().default(1),
+  virtualSetId: text("virtual_set_id"),
   sequence: integer("sequence").notNull().default(0),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
