@@ -20,14 +20,14 @@ export function LioncorePanel({ projectId }: { projectId: string }) {
     } catch {}
   }, [storageKey]);
 
-  async function runAction(action: "audit_continuity") {
+  async function runAction(action: "audit_continuity" | "scene_review", sceneId?: string) {
     if (loading) return;
     setLoading(true);
     try {
       const response = await apiFetch(`/api/projects/${projectId}/lioncore`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, sceneId }),
       });
       const data = await response.json();
       const nextReply = response.ok ? data.reply : data.error || "Lioncore action failed.";
@@ -83,6 +83,17 @@ export function LioncorePanel({ projectId }: { projectId: string }) {
       <div className="mb-2 flex gap-2">
         <Button size="sm" variant="outline" onClick={() => runAction("audit_continuity")} disabled={loading}>
           Audit Continuity
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            const sceneId = window.prompt("Scene ID to review");
+            if (sceneId) runAction("scene_review", sceneId);
+          }}
+          disabled={loading}
+        >
+          Review Scene
         </Button>
       </div>
       {reply ? <div className="mb-3 max-h-64 overflow-y-auto whitespace-pre-wrap rounded-xl bg-[--surface] p-3 text-sm">{reply}</div> : null}
