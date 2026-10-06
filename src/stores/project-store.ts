@@ -10,6 +10,9 @@ interface Character {
   visualHint?: string | null;
   scope?: string;
   episodeId?: string | null;
+  canonLockEnabled?: number;
+  canonLockVersion?: number;
+  canonVisualLock?: string | null;
 }
 
 interface Dialogue {
