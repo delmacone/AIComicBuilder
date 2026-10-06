@@ -2,6 +2,7 @@ import type { TextOptions } from "@/lib/ai/types";
 
 interface QualityResult {
   pass: boolean;
+  reviewRequired?: boolean;
   score: number; // 0-100
   issues: string[];
 }
@@ -37,7 +38,7 @@ export async function checkVideoQuality(
 
     // Try to parse JSON from result (handle markdown code blocks)
     const jsonMatch = result.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return { pass: true, score: 100, issues: [] };
+    if (!jsonMatch) return { pass: false, reviewRequired: true, score: 0, issues: ["Quality checker returned no valid JSON"] };
 
     const parsed = JSON.parse(jsonMatch[0]);
     return {
@@ -46,7 +47,7 @@ export async function checkVideoQuality(
       issues: parsed.issues ?? [],
     };
   } catch {
-    // If quality check itself fails, default to pass (don't block generation)
-    return { pass: true, score: 100, issues: [] };
+    // Never convert an unavailable checker into a perfect quality score.
+    return { pass: false, reviewRequired: true, score: 0, issues: ["Quality checker unavailable; manual review required"] };
   }
 }
