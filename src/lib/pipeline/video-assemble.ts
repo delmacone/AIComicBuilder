@@ -16,6 +16,21 @@ export async function handleVideoAssemble(task: Task) {
     .where(eq(shots.projectId, payload.projectId))
     .orderBy(asc(shots.sequence));
 
+  // BlackFist final render safety: when a project uses locked canon characters,
+  // every shot must have passed continuity. Never silently omit or assemble
+  // unapproved canon shots into the final episode.
+  const projectCharacters = await db.select().from(characters)
+    .where(eq(characters.projectId, payload.projectId));
+  const usesCanonLocks = projectCharacters.some((c) => c.canonLockEnabled === 1);
+  if (usesCanonLocks) {
+    const blocked = projectShots.filter((s) => s.continuityStatus !== "passed");
+    if (blocked.length > 0) {
+      throw new Error(
+        `BlackFist final assembly blocked: ${blocked.length} shot(s) have not passed continuity (${blocked.map((s) => `#${s.sequence}:${s.continuityStatus}`).join(", ")}).`
+      );
+    }
+  }
+
   // Load active video assets (keyframe_video / reference_video) for all shots
   // and surface them via the legacy view shape.
   const legacy = await loadShotLegacyViewsBatch(projectShots.map((s) => s.id));
