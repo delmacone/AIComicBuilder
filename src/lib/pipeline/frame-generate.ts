@@ -166,7 +166,26 @@ export async function handleFrameGenerate(task: Task) {
       ? charsWithRefs.filter((c) => storedCharNames.includes(c.name))
       : inferredChars;
   const charRefImages = relevantChars.map((c) => c.referenceImage as string);
-  const canonPromptBlock = buildCanonPromptBlock(relevantChars);
+  let canonPromptBlock = buildCanonPromptBlock(relevantChars);
+
+  // Bind shot costume overrides into the canon prompt as an explicit visual rule.
+  // The existing costume table remains the source of truth; BlackFist adds
+  // enforcement rather than duplicating costume records.
+  const costumeLockLines: string[] = [];
+  for (const c of relevantChars) {
+    const costumeId = costumeOverrides[c.id];
+    if (!costumeId) continue;
+    const [costume] = await db.select().from(characterCostumes)
+      .where(and(eq(characterCostumes.id, costumeId), eq(characterCostumes.characterId, c.id)));
+    if (costume) {
+      costumeLockLines.push(
+        `${c.name} ACTIVE COSTUME: ${costume.name}. ${costume.description || ""} Do not change this costume during the shot.`
+      );
+    }
+  }
+  if (costumeLockLines.length) {
+    canonPromptBlock += `\n\nBLACKFIST ACTIVE COSTUME LOCK:\n${costumeLockLines.join("\n")}`;
+  }
 
   console.log(`[FrameGenerate] Shot ${shot.sequence}: using ${relevantChars.length} chars: ${relevantChars.map(c => c.name).join(", ") || "fallback"}`);
 
