@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -62,9 +62,6 @@ export function CharacterCard({
   const [editVisualHint, setEditVisualHint] = useState(visualHint ?? "");
 
   // Sync local state when props change (e.g. after re-extraction)
-  useEffect(() => { setEditName(name); }, [name]);
-  useEffect(() => { setEditDesc(description); }, [description]);
-  useEffect(() => { setEditVisualHint(visualHint ?? ""); }, [visualHint]);
   const [generating, setGenerating] = useState(false);
   const [lightbox, setLightbox] = useState(false);
   const [copied, setCopied] = useState(false);
