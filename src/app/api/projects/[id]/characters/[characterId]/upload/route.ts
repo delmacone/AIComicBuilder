@@ -26,6 +26,13 @@ export async function POST(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  if (character.canonLockEnabled === 1) {
+    return NextResponse.json(
+      { error: "Canon Visual Lock is enabled. Unlock this character before uploading a replacement reference." },
+      { status: 409 }
+    );
+  }
+
   const formData = await request.formData();
   const file = formData.get("file") as File | null;
   if (!file) {
