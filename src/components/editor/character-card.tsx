@@ -70,6 +70,14 @@ export function CharacterCard({
   const [copied, setCopied] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [canonBusy, setCanonBusy] = useState(false);
+  const [canonEditorOpen, setCanonEditorOpen] = useState(false);
+  const parsedCanon = (() => { try { return JSON.parse(canonVisualLock || "{}"); } catch { return {}; } })();
+  const [canonSkinTone, setCanonSkinTone] = useState(parsedCanon.skinTone || "");
+  const [canonHair, setCanonHair] = useState(parsedCanon.hair || "");
+  const [canonBodyBuild, setCanonBodyBuild] = useState(parsedCanon.bodyBuild || "");
+  const [canonCostume, setCanonCostume] = useState(parsedCanon.costume || "");
+  const [canonEmblem, setCanonEmblem] = useState(parsedCanon.emblem || "");
+  const [canonColors, setCanonColors] = useState((parsedCanon.costumeColors || []).join(", "));
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const imageGuard = useModelGuard("image");
   const isGenerating = generating || (!!batchGenerating && !referenceImage);
@@ -125,12 +133,19 @@ export function CharacterCard({
     }
     setCanonBusy(true);
     try {
-      let existing: Record<string, unknown> = {};
-      try { existing = JSON.parse(canonVisualLock || "{}"); } catch {}
+      const canonPayload = {
+        ...parsedCanon,
+        skinTone: canonSkinTone,
+        hair: canonHair,
+        bodyBuild: canonBodyBuild,
+        costume: canonCostume,
+        emblem: canonEmblem,
+        costumeColors: canonColors.split(",").map((v: string) => v.trim()).filter(Boolean),
+      };
       const response = await apiFetch(`/api/projects/${projectId}/characters/${id}/canon-lock`, {
         method: canonLockEnabled ? "DELETE" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: canonLockEnabled ? undefined : JSON.stringify(existing),
+        body: canonLockEnabled ? undefined : JSON.stringify(canonPayload),
       });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
@@ -288,6 +303,23 @@ export function CharacterCard({
           placeholder={t("character.visualHint")}
           className="h-8 text-xs text-muted-foreground"
         />
+        {!canonLockEnabled && referenceImage ? (
+          <div className="rounded-lg border border-[--border-subtle] p-3 space-y-2">
+            <button type="button" className="text-xs font-semibold text-primary" onClick={() => setCanonEditorOpen((v) => !v)}>
+              {canonEditorOpen ? "Hide Canon Details" : "Edit Canon Details"}
+            </button>
+            {canonEditorOpen ? (
+              <div className="grid gap-2">
+                <Input value={canonSkinTone} onChange={(e) => setCanonSkinTone(e.target.value)} placeholder="Skin tone (required)" className="h-8 text-xs" />
+                <Input value={canonHair} onChange={(e) => setCanonHair(e.target.value)} placeholder="Hair (required)" className="h-8 text-xs" />
+                <Input value={canonBodyBuild} onChange={(e) => setCanonBodyBuild(e.target.value)} placeholder="Body/build (required)" className="h-8 text-xs" />
+                <Input value={canonCostume} onChange={(e) => setCanonCostume(e.target.value)} placeholder="Hero costume (required)" className="h-8 text-xs" />
+                <Input value={canonEmblem} onChange={(e) => setCanonEmblem(e.target.value)} placeholder="Emblem/logo (required)" className="h-8 text-xs" />
+                <Input value={canonColors} onChange={(e) => setCanonColors(e.target.value)} placeholder="Costume colours, comma separated" className="h-8 text-xs" />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         <div className="flex items-center justify-between rounded-lg border border-[--border-subtle] px-3 py-2">
           <div>
             <div className="text-xs font-semibold">BlackFist Canon Visual Lock</div>
