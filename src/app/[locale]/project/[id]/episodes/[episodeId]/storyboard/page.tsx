@@ -47,6 +47,7 @@ import { VersionCompare } from "@/components/editor/version-compare";
 import { PromptEditButton } from "@/components/prompt-templates/prompt-edit-button";
 import { AgentPicker } from "@/components/agent-picker";
 import Link from "next/link";
+import { LioncorePanel } from "@/components/lioncore-panel";
 
 export default function EpisodeStoryboardPage() {
   const t = useTranslations();
@@ -1187,6 +1188,7 @@ export default function EpisodeStoryboardPage() {
           anyGenerating={anyGenerating}
         />
       )}
+      <LioncorePanel projectId={project.id} />
     </div>
   );
 }
