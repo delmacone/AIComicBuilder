@@ -48,6 +48,7 @@ import { PromptEditButton } from "@/components/prompt-templates/prompt-edit-butt
 import { AgentPicker } from "@/components/agent-picker";
 import Link from "next/link";
 import { LioncorePanel } from "@/components/lioncore-panel";
+import { VirtualSetsPanel } from "@/components/editor/virtual-sets-panel";
 
 export default function EpisodeStoryboardPage() {
   const t = useTranslations();
@@ -1171,6 +1172,8 @@ export default function EpisodeStoryboardPage() {
           );
         })()
       )}
+
+      <VirtualSetsPanel projectId={project.id} />
 
       {openDrawerShotId && (
         <ShotDrawer
