@@ -243,13 +243,6 @@ export function ShotCard({
   const [editCameraDirection, setEditCameraDirection] = useState(cameraDirection ?? "static");
   const [editDuration, setEditDuration] = useState(duration);
 
-  useEffect(() => { setEditPrompt(prompt); }, [prompt]);
-  useEffect(() => { setEditStartFrame(startFrameDesc ?? ""); }, [startFrameDesc]);
-  useEffect(() => { setEditEndFrame(endFrameDesc ?? ""); }, [endFrameDesc]);
-  useEffect(() => { setEditMotionScript(motionScript ?? ""); }, [motionScript]);
-  useEffect(() => { setEditVideoPrompt(videoPrompt ?? ""); }, [videoPrompt]);
-  useEffect(() => { setEditCameraDirection(cameraDirection ?? "static"); }, [cameraDirection]);
-  useEffect(() => { setEditDuration(duration); }, [duration]);
 
   // Generation state
   const [generatingFrames, setGeneratingFrames] = useState(false);
