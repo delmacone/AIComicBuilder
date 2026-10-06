@@ -15,6 +15,14 @@ interface Character {
   canonVisualLock?: string | null;
 }
 
+interface Scene {
+  id: string;
+  title: string;
+  description?: string | null;
+  virtualSetId?: string | null;
+  sequence: number;
+}
+
 interface Dialogue {
   id: string;
   text: string;
@@ -209,6 +217,7 @@ interface Project {
   finalVideoUrl: string | null;
   generationMode: "keyframe" | "reference";
   characters: Character[];
+  scenes: Scene[];
   shots: Shot[];
   versions: StoryboardVersion[];
 }
