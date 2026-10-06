@@ -142,6 +142,12 @@ export async function handleFrameGenerate(task: Task) {
               sceneRules.push(`Virtual Set ${label} metadata requires review.`);
             }
           }
+          try {
+            const refs = JSON.parse(set.referenceImages || "[]");
+            if (Array.isArray(refs)) setRefImages.push(...refs.filter((ref): ref is string => typeof ref === "string"));
+          } catch {
+            sceneRules.push("Virtual Set reference image metadata requires review.");
+          }
           sceneRules.push("Keep the same geography, architecture, landmarks, prop placement and existing damage across every camera angle. Do not redesign or reset the set between shots.");
         }
       }
@@ -216,6 +222,7 @@ export async function handleFrameGenerate(task: Task) {
       ? charsWithRefs.filter((c) => storedCharNames.includes(c.name))
       : inferredChars;
   const charRefImages = relevantChars.map((c) => c.referenceImage as string);
+  const setRefImages: string[] = [];
   let canonPromptBlock = buildCanonPromptBlock(relevantChars);
   if (visualStylePrompt) canonPromptBlock += `\n\n${visualStylePrompt}`;
 
@@ -295,8 +302,8 @@ export async function handleFrameGenerate(task: Task) {
 
     // On retries include the previous approved shot as an additional visual anchor.
     const retryRefs = attempt > 1 && prevLastFrameUrl
-      ? [...charRefImages, prevLastFrameUrl]
-      : charRefImages;
+      ? [...charRefImages, ...setRefImages, prevLastFrameUrl]
+      : [...charRefImages, ...setRefImages];
     firstFramePath = await ai.generateImage(firstFramePrompt, {
       quality: "hd",
       referenceImages: retryRefs,
@@ -313,7 +320,7 @@ export async function handleFrameGenerate(task: Task) {
     if (canonPromptBlock) lastFramePrompt += canonPromptBlock;
     lastFramePath = await ai.generateImage(lastFramePrompt, {
       quality: "hd",
-      referenceImages: [firstFramePath, ...charRefImages],
+      referenceImages: [firstFramePath, ...charRefImages, ...setRefImages],
     });
 
     if (lockedRelevantChars.length === 0) break;
