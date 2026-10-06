@@ -17,9 +17,9 @@ export async function POST(
     return NextResponse.json({ error: "Lioncore is not connected. Add OPENAI_API_KEY on the server." }, { status: 503 });
   }
 
-  const body = await request.json() as { message?: string };
-  const message = body.message?.trim();
-  if (!message) return NextResponse.json({ error: "Message required" }, { status: 400 });
+  const body = await request.json() as { message?: string; action?: "audit_continuity" | "scene_review"; sceneId?: string };
+  const message = body.message?.trim() || "";
+  if (!message && !body.action) return NextResponse.json({ error: "Message or action required" }, { status: 400 });
 
   const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
   if (!project) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -48,6 +48,32 @@ export async function POST(
       continuityScore: s.continuityScore, continuityIssues: s.continuityIssues,
     })),
   };
+
+  // Read-only production actions: Lioncore may inspect and report without
+  // mutating canon, shots, scenes or assets.
+  if (body.action === "audit_continuity") {
+    const problemShots = projectShots
+      .filter((s) => s.continuityStatus === "failed" || s.continuityStatus === "review_required")
+      .map((s) => ({ sequence: s.sequence, status: s.continuityStatus, score: s.continuityScore, issues: s.continuityIssues }));
+    return NextResponse.json({
+      action: body.action,
+      reply: problemShots.length
+        ? `Continuity audit found ${problemShots.length} shot(s) requiring attention:\n` + problemShots.map((s) => `Shot ${s.sequence}: ${s.status} (score ${s.score ?? 0}) — ${s.issues || "review required"}`).join("\n")
+        : "Continuity audit: no failed or review-required shots found.",
+      results: problemShots,
+    });
+  }
+
+  if (body.action === "scene_review") {
+    const scene = projectScenes.find((s) => s.id === body.sceneId);
+    if (!scene) return NextResponse.json({ error: "Scene not found" }, { status: 404 });
+    const sceneShots = projectShots.filter((s) => s.sceneId === scene.id);
+    const state = (() => { try { return JSON.parse(scene.continuityState || "{}"); } catch { return {}; } })();
+    return NextResponse.json({
+      action: body.action,
+      reply: `Scene: ${scene.title || "Untitled"}\nShots: ${sceneShots.length}\nLighting: ${scene.lighting || "not set"}\nColour palette: ${scene.colorPalette || "not set"}\nContinuity state: ${Object.keys(state).length ? JSON.stringify(state, null, 2) : "not set"}\nCanon gate: ${sceneShots.filter((s) => s.continuityStatus === "passed").length}/${sceneShots.length} shots passed.`,
+    });
+  }
 
   const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const response = await client.responses.create({
