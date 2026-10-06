@@ -10,6 +10,7 @@ import { resolveSlotContents } from "@/lib/ai/prompts/resolver";
 import { eq, and, lt, desc } from "drizzle-orm";
 import type { Task } from "@/lib/task-queue";
 import { getActiveAsset, insertAssetVersion, patchAsset } from "@/lib/shot-asset-utils";
+import { checkCanonContinuity, type CanonVisualLock } from "@/lib/pipeline/blackfist-continuity-check";
 
 export async function handleFrameGenerate(task: Task) {
   const payload = task.payload as {
@@ -186,6 +187,48 @@ export async function handleFrameGenerate(task: Task) {
     quality: "hd",
     referenceImages: [firstFramePath, ...charRefImages],
   });
+
+  // BlackFist Canon Visual Lock gate. Check every locked character that
+  // participates in this shot before the generated assets can be completed.
+  const lockedRelevantChars = relevantChars.filter(
+    (c) => c.canonLockEnabled === 1 && !!c.referenceImage
+  );
+  const continuityResults = [];
+  for (const c of lockedRelevantChars) {
+    let lock: CanonVisualLock;
+    try {
+      lock = JSON.parse(c.canonVisualLock || "{}") as CanonVisualLock;
+    } catch {
+      await db.update(shots).set({
+        continuityStatus: "review_required",
+        continuityScore: 0,
+        continuityIssues: JSON.stringify([`${c.name}: invalid Canon Visual Lock JSON`]),
+      }).where(eq(shots.id, payload.shotId));
+      throw new Error(`BlackFist continuity review required for ${c.name}: invalid canon lock`);
+    }
+    lock.characterName ||= c.name;
+    const result = await checkCanonContinuity(ai, lastFramePath, c.referenceImage as string, lock);
+    continuityResults.push({ character: c.name, ...result });
+  }
+
+  if (continuityResults.length > 0) {
+    const reviewRequired = continuityResults.some((r) => r.status === "review_required");
+    const failed = continuityResults.some((r) => r.status === "failed");
+    const score = Math.min(...continuityResults.map((r) => r.score));
+    const issues = continuityResults.flatMap((r) => r.issues.map((issue) => `${r.character}: ${issue}`));
+    const continuityStatus = reviewRequired ? "review_required" : failed ? "failed" : "passed";
+
+    await db.update(shots).set({
+      continuityStatus,
+      continuityScore: score,
+      continuityIssues: JSON.stringify(issues),
+    }).where(eq(shots.id, payload.shotId));
+
+    // Do not allow a canon mismatch to be marked completed or enter downstream assembly.
+    if (continuityStatus !== "passed") {
+      throw new Error(`BlackFist continuity gate blocked shot ${shot.sequence}: ${continuityStatus}`);
+    }
+  }
 
   // Patch asset rows with the resulting file URLs (or insert if they didn't
   // exist yet — happens for shots whose keyframe asset prompts haven't been
