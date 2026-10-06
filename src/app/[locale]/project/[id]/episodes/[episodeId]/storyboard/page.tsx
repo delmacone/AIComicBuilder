@@ -67,7 +67,11 @@ export default function EpisodeStoryboardPage() {
   const versions = project?.versions ?? [];
   const [_selectedVersionId, setSelectedVersionId] = useState<string | null>(null);
   const [openDrawerShotId, setOpenDrawerShotId] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
+  const [viewMode, setViewMode] = useState<"list" | "kanban">(() => {
+    if (typeof window === "undefined") return "list";
+    const stored = localStorage.getItem(`storyboardView:${project?.id ?? ""}`);
+    return stored === "kanban" ? "kanban" : "list";
+  });
   const [versionDropdownOpen, setVersionDropdownOpen] = useState(false);
   const versionDropdownRef = useRef<HTMLDivElement>(null);
   const [batchProgress, setBatchProgress] = useState<{
@@ -99,12 +103,6 @@ export default function EpisodeStoryboardPage() {
   const textGuard = useModelGuard("text");
   const imageGuard = useModelGuard("image");
   const videoGuard = useModelGuard("video");
-
-  useEffect(() => {
-    if (!project?.id) return;
-    const stored = localStorage.getItem(`storyboardView:${project.id}`);
-    if (stored === "list" || stored === "kanban") setViewMode(stored);
-  }, [project?.id]);
 
   // Derived: if user's selection is valid keep it, otherwise fall back to latest
   const selectedVersionId = (_selectedVersionId && versions.some((v) => v.id === _selectedVersionId))
