@@ -114,6 +114,8 @@ export async function handleFrameGenerate(task: Task) {
     compositionSuffix += `\n\nGLOBAL COLOR PALETTE (mandatory): ${colorPalette}. All frames must adhere to this color scheme.`;
   }
 
+  const setRefImages: string[] = [];
+
   // Persistent scene continuity: keep location/props/damage/weather/injuries
   // stable across all shots in the same scene when the state has been defined.
   if (shot.sceneId) {
@@ -222,7 +224,6 @@ export async function handleFrameGenerate(task: Task) {
       ? charsWithRefs.filter((c) => storedCharNames.includes(c.name))
       : inferredChars;
   const charRefImages = relevantChars.map((c) => c.referenceImage as string);
-  const setRefImages: string[] = [];
   let canonPromptBlock = buildCanonPromptBlock(relevantChars);
   if (visualStylePrompt) canonPromptBlock += `\n\n${visualStylePrompt}`;
 
