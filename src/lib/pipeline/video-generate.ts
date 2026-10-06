@@ -32,11 +32,17 @@ export async function handleVideoGenerate(task: Task) {
 
   if (!shot) throw new Error("Shot not found");
 
-  // A shot containing locked BlackFist canon must pass frame continuity before
-  // expensive video generation is allowed to begin.
+  // Determine whether THIS shot contains locked BlackFist canon characters.
+  // Do not block unrelated scenery/support shots merely because the project has
+  // a locked hero somewhere else.
   const lockedCharacters = await db.select().from(characters)
     .where(eq(characters.projectId, shot.projectId));
-  if (lockedCharacters.some((c) => c.canonLockEnabled === 1) && shot.continuityStatus !== "passed") {
+  const shotText = [shot.prompt, shot.videoScript, shot.motionScript]
+    .filter(Boolean).join("\n").toLowerCase();
+  const shotHasLockedCanon = lockedCharacters.some(
+    (c) => c.canonLockEnabled === 1 && shotText.includes(c.name.toLowerCase())
+  );
+  if (shotHasLockedCanon && shot.continuityStatus !== "passed") {
     throw new Error(`BlackFist continuity gate has not passed for shot ${shot.sequence}; video generation blocked.`);
   }
 
