@@ -343,7 +343,7 @@ export function CharacterCard({
             <div className="flex gap-2">
               <Button
                 onClick={handleGenerateImage}
-                disabled={isGenerating}
+                disabled={isGenerating || canonLockEnabled === 1}
                 className="flex-1"
                 size="sm"
               >
@@ -359,7 +359,7 @@ export function CharacterCard({
                 size="sm"
                 className="shrink-0 px-2.5"
                 title={t("character.uploadImage")}
-                disabled={uploading}
+                disabled={uploading || canonLockEnabled === 1}
                 onClick={() => uploadInputRef.current?.click()}
               >
                 {uploading ? (
@@ -418,6 +418,7 @@ export function CharacterCard({
         accept="image/*"
         className="hidden"
         onChange={handleUploadImage}
+        disabled={canonLockEnabled === 1}
       />
     </div>
   );
