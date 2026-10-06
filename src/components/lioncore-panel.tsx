@@ -20,14 +20,14 @@ export function LioncorePanel({ projectId }: { projectId: string }) {
     } catch {}
   }, [storageKey]);
 
-  async function runAction(action: "audit_continuity" | "scene_review", sceneId?: string) {
+  async function runAction(action: "audit_continuity" | "scene_review" | "retry_shot", id?: string) {
     if (loading) return;
     setLoading(true);
     try {
       const response = await apiFetch(`/api/projects/${projectId}/lioncore`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, sceneId }),
+        body: JSON.stringify(action === "scene_review" ? { action, sceneId: id } : action === "retry_shot" ? { action, shotId: id, confirm: true } : { action }),
       });
       const data = await response.json();
       const nextReply = response.ok ? data.reply : data.error || "Lioncore action failed.";
@@ -94,6 +94,19 @@ export function LioncorePanel({ projectId }: { projectId: string }) {
           disabled={loading}
         >
           Review Scene
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            const shotId = window.prompt("Failed/review-required Shot ID to regenerate");
+            if (shotId && window.confirm("Regenerate this shot's frames? Locked canon will not be changed.")) {
+              runAction("retry_shot", shotId);
+            }
+          }}
+          disabled={loading}
+        >
+          Retry Shot
         </Button>
       </div>
       {reply ? <div className="mb-3 max-h-64 overflow-y-auto whitespace-pre-wrap rounded-xl bg-[--surface] p-3 text-sm">{reply}</div> : null}
