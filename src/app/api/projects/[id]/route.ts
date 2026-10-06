@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { projects, episodes, characters, shots, dialogues, storyboardVersions } from "@/lib/db/schema";
+import { projects, episodes, characters, shots, dialogues, storyboardVersions, scenes } from "@/lib/db/schema";
 import { eq, asc, and, desc } from "drizzle-orm";
 import { getUserIdFromRequest } from "@/lib/get-user-id";
 import { markDownstreamStale } from "@/lib/staleness";
@@ -103,6 +103,12 @@ export async function GET(
     })
   );
 
+  const projectScenes = await db
+    .select()
+    .from(scenes)
+    .where(eq(scenes.projectId, id))
+    .orderBy(asc(scenes.sequence));
+
   // Fetch episodes for this project
   const projectEpisodes = await db
     .select()
@@ -114,6 +120,7 @@ export async function GET(
     ...project,
     episodes: projectEpisodes,
     characters: projectCharacters,
+    scenes: projectScenes,
     shots: enrichedShots,
     versions: allVersions.map((v) => ({
       id: v.id,
