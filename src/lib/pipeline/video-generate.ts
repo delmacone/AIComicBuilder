@@ -31,6 +31,14 @@ export async function handleVideoGenerate(task: Task) {
 
   if (!shot) throw new Error("Shot not found");
 
+  // A shot containing locked BlackFist canon must pass frame continuity before
+  // expensive video generation is allowed to begin.
+  const lockedCharacters = await db.select().from(characters)
+    .where(eq(characters.projectId, shot.projectId));
+  if (lockedCharacters.some((c) => c.canonLockEnabled === 1) && shot.continuityStatus !== "passed") {
+    throw new Error(`BlackFist continuity gate has not passed for shot ${shot.sequence}; video generation blocked.`);
+  }
+
   // Read first/last frame URL from shot_assets
   const firstFrameAsset = await getActiveAsset(payload.shotId, "first_frame", 0);
   const lastFrameAsset = await getActiveAsset(payload.shotId, "last_frame", 0);
