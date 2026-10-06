@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { shots, characters, projects, episodes, characterCostumes, scenes } from "@/lib/db/schema";
+import { shots, characters, projects, episodes, characterCostumes, scenes, virtualSets } from "@/lib/db/schema";
 import { resolveImageProvider, resolveAIProvider } from "@/lib/ai/provider-factory";
 import type { ModelConfigPayload } from "@/lib/ai/provider-factory";
 import {
@@ -124,6 +124,27 @@ export async function handleFrameGenerate(task: Task) {
       if (scene.description) sceneRules.push(`Scene description: ${scene.description}`);
       if (scene.lighting) sceneRules.push(`Lighting: ${scene.lighting}`);
       if (scene.colorPalette) sceneRules.push(`Scene colours: ${scene.colorPalette}`);
+      if (scene.virtualSetId) {
+        const [set] = await db.select().from(virtualSets).where(eq(virtualSets.id, scene.virtualSetId));
+        if (set?.continuityLockEnabled) {
+          sceneRules.push(`VIRTUAL SET LOCK: ${set.name}`);
+          if (set.location) sceneRules.push(`Set location: ${set.location}`);
+          if (set.description) sceneRules.push(`Set design: ${set.description}`);
+          if (set.timeOfDay) sceneRules.push(`Time of day: ${set.timeOfDay}`);
+          if (set.weather) sceneRules.push(`Weather: ${set.weather}`);
+          if (set.lighting) sceneRules.push(`Set lighting: ${set.lighting}`);
+          for (const [label, raw] of [["layout", set.layoutState], ["props", set.propsState], ["damage", set.damageState]] as const) {
+            try {
+              const state = JSON.parse(raw || "{}");
+              const details = Object.entries(state).filter(([, value]) => value !== "" && value != null).map(([key, value]) => `${key}: ${String(value)}`);
+              if (details.length) sceneRules.push(`Set ${label}: ${details.join("; ")}`);
+            } catch {
+              sceneRules.push(`Virtual Set ${label} metadata requires review.`);
+            }
+          }
+          sceneRules.push("Keep the same geography, architecture, landmarks, prop placement and existing damage across every camera angle. Do not redesign or reset the set between shots.");
+        }
+      }
       try {
         const state = JSON.parse(scene.continuityState || "{}");
         for (const [key, value] of Object.entries(state)) {
