@@ -54,6 +54,12 @@ export function LioncorePanel({ projectId }: { projectId: string }) {
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         placeholder="Ask about canon, a scene, shot, costume, continuity or production..."
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            askLioncore();
+          }
+        }}
         className="min-h-24"
       />
       <Button className="mt-2 w-full" onClick={askLioncore} disabled={loading || !message.trim()}>
