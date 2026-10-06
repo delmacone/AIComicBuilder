@@ -27,5 +27,14 @@ jobs:
         with:
           name: blackfist-typecheck
           path: typecheck.log
-      - name: Lint\n        run: |\n          set -o pipefail\n          pnpm lint 2>&1 | tee lint.log\n      - name: Upload lint report\n        if: always()\n        uses: actions/upload-artifact@v4\n        with:\n          name: blackfist-lint\n          path: lint.log
+      - name: Lint
+        run: |
+          set -o pipefail
+          pnpm lint 2>&1 | tee lint.log
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: blackfist-lint
+          path: lint.log
       - run: pnpm build
