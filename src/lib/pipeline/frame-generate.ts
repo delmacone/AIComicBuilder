@@ -11,6 +11,7 @@ import { eq, and, lt, desc } from "drizzle-orm";
 import type { Task } from "@/lib/task-queue";
 import { getActiveAsset, insertAssetVersion, patchAsset } from "@/lib/shot-asset-utils";
 import { checkCanonContinuity, type CanonVisualLock } from "@/lib/pipeline/blackfist-continuity-check";
+import { buildCanonPromptBlock } from "@/lib/pipeline/blackfist-canon-context";
 
 export async function handleFrameGenerate(task: Task) {
   const payload = task.payload as {
@@ -148,6 +149,7 @@ export async function handleFrameGenerate(task: Task) {
       ? charsWithRefs.filter((c) => storedCharNames.includes(c.name))
       : charsWithRefs.slice(0, 3);
   const charRefImages = relevantChars.map((c) => c.referenceImage as string);
+  const canonPromptBlock = buildCanonPromptBlock(relevantChars);
 
   console.log(`[FrameGenerate] Shot ${shot.sequence}: using ${relevantChars.length} chars: ${relevantChars.map(c => c.name).join(", ") || "fallback"}`);
 
@@ -177,6 +179,7 @@ export async function handleFrameGenerate(task: Task) {
       slotContents: frameFirstSlots,
     });
     if (compositionSuffix) firstFramePrompt += compositionSuffix;
+    if (canonPromptBlock) firstFramePrompt += canonPromptBlock;
     if (attempt > 1) {
       firstFramePrompt += "\n\nBLACKFIST CONTINUITY RETRY: Preserve the approved character identity, skin tone, body proportions, costume colours, emblem and accessories exactly. Do not redesign the character.";
     }
@@ -198,6 +201,7 @@ export async function handleFrameGenerate(task: Task) {
       slotContents: frameLastSlots,
     });
     if (compositionSuffix) lastFramePrompt += compositionSuffix;
+    if (canonPromptBlock) lastFramePrompt += canonPromptBlock;
     lastFramePath = await ai.generateImage(lastFramePrompt, {
       quality: "hd",
       referenceImages: [firstFramePath, ...charRefImages],
