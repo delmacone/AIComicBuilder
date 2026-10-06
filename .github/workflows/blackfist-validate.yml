@@ -30,7 +30,7 @@ jobs:
       - name: Lint
         run: |
           set -o pipefail
-          pnpm lint -- --max-warnings=9999 2>&1 | tee lint.log
+          pnpm exec eslint . --max-warnings=9999 2>&1 | tee lint.log
       - name: Upload lint report
         if: always()
         uses: actions/upload-artifact@v4
