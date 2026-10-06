@@ -160,74 +160,103 @@ export async function handleFrameGenerate(task: Task) {
     ? (await getActiveAsset(previousShot.id, "last_frame", 0))?.fileUrl ?? undefined
     : undefined;
 
-  // Generate first frame
-  let firstFramePrompt = buildFirstFramePrompt({
-    sceneDescription: shot.prompt || "",
-    startFrameDesc: startFrameDescText,
-    characterDescriptions,
-    previousLastFrame: prevLastFrameUrl ?? undefined,
-    slotContents: frameFirstSlots,
-  });
-  if (compositionSuffix) firstFramePrompt += compositionSuffix;
-  const firstFramePath = await ai.generateImage(firstFramePrompt, {
-    quality: "hd",
-    referenceImages: charRefImages,
-  });
-
-  // Generate last frame
-  let lastFramePrompt = buildLastFramePrompt({
-    sceneDescription: shot.prompt || "",
-    endFrameDesc: endFrameDescText,
-    characterDescriptions,
-    firstFramePath,
-    slotContents: frameLastSlots,
-  });
-  if (compositionSuffix) lastFramePrompt += compositionSuffix;
-  const lastFramePath = await ai.generateImage(lastFramePrompt, {
-    quality: "hd",
-    referenceImages: [firstFramePath, ...charRefImages],
-  });
-
-  // BlackFist Canon Visual Lock gate. Check every locked character that
-  // participates in this shot before the generated assets can be completed.
   const lockedRelevantChars = relevantChars.filter(
     (c) => c.canonLockEnabled === 1 && !!c.referenceImage
   );
-  const continuityResults = [];
-  for (const c of lockedRelevantChars) {
-    let lock: CanonVisualLock;
-    try {
-      lock = JSON.parse(c.canonVisualLock || "{}") as CanonVisualLock;
-    } catch {
-      await db.update(shots).set({
-        continuityStatus: "review_required",
-        continuityScore: 0,
-        continuityIssues: JSON.stringify([`${c.name}: invalid Canon Visual Lock JSON`]),
-      }).where(eq(shots.id, payload.shotId));
-      throw new Error(`BlackFist continuity review required for ${c.name}: invalid canon lock`);
-    }
-    lock.characterName ||= c.name;
-    const result = await checkCanonContinuity(ai, lastFramePath, c.referenceImage as string, lock);
-    continuityResults.push({ character: c.name, ...result });
-  }
+  const MAX_CONTINUITY_ATTEMPTS = 3;
+  let firstFramePath = "";
+  let lastFramePath = "";
+  let continuityPassed = lockedRelevantChars.length === 0;
 
-  if (continuityResults.length > 0) {
+  for (let attempt = 1; attempt <= MAX_CONTINUITY_ATTEMPTS; attempt++) {
+    let firstFramePrompt = buildFirstFramePrompt({
+      sceneDescription: shot.prompt || "",
+      startFrameDesc: startFrameDescText,
+      characterDescriptions,
+      previousLastFrame: prevLastFrameUrl ?? undefined,
+      slotContents: frameFirstSlots,
+    });
+    if (compositionSuffix) firstFramePrompt += compositionSuffix;
+    if (attempt > 1) {
+      firstFramePrompt += "\n\nBLACKFIST CONTINUITY RETRY: Preserve the approved character identity, skin tone, body proportions, costume colours, emblem and accessories exactly. Do not redesign the character.";
+    }
+
+    // On retries include the previous approved shot as an additional visual anchor.
+    const retryRefs = attempt > 1 && prevLastFrameUrl
+      ? [...charRefImages, prevLastFrameUrl]
+      : charRefImages;
+    firstFramePath = await ai.generateImage(firstFramePrompt, {
+      quality: "hd",
+      referenceImages: retryRefs,
+    });
+
+    let lastFramePrompt = buildLastFramePrompt({
+      sceneDescription: shot.prompt || "",
+      endFrameDesc: endFrameDescText,
+      characterDescriptions,
+      firstFramePath,
+      slotContents: frameLastSlots,
+    });
+    if (compositionSuffix) lastFramePrompt += compositionSuffix;
+    lastFramePath = await ai.generateImage(lastFramePrompt, {
+      quality: "hd",
+      referenceImages: [firstFramePath, ...charRefImages],
+    });
+
+    if (lockedRelevantChars.length === 0) break;
+
+    const continuityResults = [];
+    for (const c of lockedRelevantChars) {
+      let lock: CanonVisualLock;
+      try {
+        lock = JSON.parse(c.canonVisualLock || "{}") as CanonVisualLock;
+      } catch {
+        await db.update(shots).set({
+          continuityStatus: "review_required",
+          continuityScore: 0,
+          continuityIssues: JSON.stringify([`${c.name}: invalid Canon Visual Lock JSON`]),
+          continuityRetryCount: attempt - 1,
+        }).where(eq(shots.id, payload.shotId));
+        throw new Error(`BlackFist continuity review required for ${c.name}: invalid canon lock`);
+      }
+      lock.characterName ||= c.name;
+      const result = await checkCanonContinuity(ai, lastFramePath, c.referenceImage as string, lock);
+      continuityResults.push({ character: c.name, ...result });
+    }
+
     const reviewRequired = continuityResults.some((r) => r.status === "review_required");
     const failed = continuityResults.some((r) => r.status === "failed");
     const score = Math.min(...continuityResults.map((r) => r.score));
-    const issues = continuityResults.flatMap((r) => r.issues.map((issue) => `${r.character}: ${issue}`));
+    const issues = continuityResults.flatMap((r) =>
+      r.issues.map((issue) => `${r.character}: ${issue}`)
+    );
     const continuityStatus = reviewRequired ? "review_required" : failed ? "failed" : "passed";
 
     await db.update(shots).set({
       continuityStatus,
       continuityScore: score,
       continuityIssues: JSON.stringify(issues),
+      continuityRetryCount: attempt - 1,
     }).where(eq(shots.id, payload.shotId));
 
-    // Do not allow a canon mismatch to be marked completed or enter downstream assembly.
-    if (continuityStatus !== "passed") {
-      throw new Error(`BlackFist continuity gate blocked shot ${shot.sequence}: ${continuityStatus}`);
+    if (continuityStatus === "passed") {
+      continuityPassed = true;
+      break;
     }
+
+    // Checker/infrastructure uncertainty should go to a human rather than
+    // spending credits blindly or accidentally approving a bad canon frame.
+    if (continuityStatus === "review_required") {
+      throw new Error(`BlackFist continuity review required for shot ${shot.sequence}`);
+    }
+  }
+
+  if (!continuityPassed) {
+    await db.update(shots).set({
+      continuityStatus: "review_required",
+      continuityRetryCount: MAX_CONTINUITY_ATTEMPTS - 1,
+    }).where(eq(shots.id, payload.shotId));
+    throw new Error(`BlackFist continuity gate exhausted retries for shot ${shot.sequence}; manual review required`);
   }
 
   // Patch asset rows with the resulting file URLs (or insert if they didn't
