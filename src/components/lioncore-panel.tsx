@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { apiFetch } from "@/lib/api-fetch";
@@ -11,6 +11,14 @@ export function LioncorePanel({ projectId }: { projectId: string }) {
   const [message, setMessage] = useState("");
   const [reply, setReply] = useState("");
   const [loading, setLoading] = useState(false);
+  const storageKey = `lioncore:${projectId}:conversation`;
+
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(storageKey);
+      if (saved) setReply(saved);
+    } catch {}
+  }, [storageKey]);
 
   async function askLioncore() {
     if (!message.trim() || loading) return;
@@ -22,7 +30,12 @@ export function LioncorePanel({ projectId }: { projectId: string }) {
         body: JSON.stringify({ message }),
       });
       const data = await response.json();
-      setReply(response.ok ? data.reply : data.error || "Lioncore connection failed.");
+      const nextReply = response.ok ? data.reply : data.error || "Lioncore connection failed.";
+      setReply(nextReply);
+      if (response.ok) {
+        try { sessionStorage.setItem(storageKey, nextReply); } catch {}
+        setMessage("");
+      }
     } finally {
       setLoading(false);
     }
