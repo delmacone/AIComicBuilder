@@ -88,7 +88,8 @@ export async function handleVideoGenerate(task: Task) {
     characters: projectCharacters,
     slotContents: videoSlots,
   });
-  const canonPromptBlock = buildCanonPromptBlock(projectCharacters);
+  const videoRelevantCharacters = projectCharacters.filter((c) => shotText.includes(c.name.toLowerCase()));
+  const canonPromptBlock = buildCanonPromptBlock(videoRelevantCharacters);
   if (canonPromptBlock) prompt += canonPromptBlock;
 
   const result = await videoProvider.generateVideo({
@@ -114,7 +115,7 @@ export async function handleVideoGenerate(task: Task) {
     .set({ status: "completed" })
     .where(eq(shots.id, payload.shotId));
 
-  // Best-effort video quality check — does not block or fail generation
+  // Video quality inspection. Checker uncertainty is surfaced for human review.
   try {
     const textProvider = resolveAIProvider(payload.modelConfig);
     if (textProvider) {
@@ -136,6 +137,8 @@ export async function handleVideoGenerate(task: Task) {
         videoPath: result.filePath,
         qualityScore: qualityResult.score,
         qualityIssues: qualityResult.issues,
+        qualityReviewRequired: qualityResult.reviewRequired === true,
+        qualityPassed: qualityResult.pass,
       };
     }
   } catch (e) {
