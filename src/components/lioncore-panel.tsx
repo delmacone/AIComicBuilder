@@ -95,19 +95,7 @@ export function LioncorePanel({ projectId }: { projectId: string }) {
         >
           Review Scene
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => {
-            const shotId = window.prompt("Failed/review-required Shot ID to regenerate");
-            if (shotId && window.confirm("Regenerate this shot's frames? Locked canon will not be changed.")) {
-              runAction("retry_shot", shotId);
-            }
-          }}
-          disabled={loading}
-        >
-          Retry Shot
-        </Button>
+
       </div>
       {reply ? <div className="mb-3 max-h-64 overflow-y-auto whitespace-pre-wrap rounded-xl bg-[--surface] p-3 text-sm">{reply}</div> : null}
       <Textarea
