@@ -837,6 +837,17 @@ export function ShotCard({
                 {t("storyboard.stale")}
               </span>
             ) : null}
+            {shot.continuityStatus && shot.continuityStatus !== "pending" ? (
+              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold flex-shrink-0 ${
+                shot.continuityStatus === "passed"
+                  ? "bg-emerald-100 text-emerald-700"
+                  : shot.continuityStatus === "failed"
+                    ? "bg-red-100 text-red-700"
+                    : "bg-amber-100 text-amber-800"
+              }`}>
+                CANON {shot.continuityStatus === "passed" ? `PASS ${shot.continuityScore ?? ""}` : shot.continuityStatus.replace("_", " ").toUpperCase()}
+              </span>
+            ) : null}
           </div>
           <div className="mt-1 flex items-center gap-2">
             {/* Duration */}
