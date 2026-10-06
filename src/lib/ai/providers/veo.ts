@@ -172,7 +172,7 @@ export class VeoProvider implements VideoProvider {
     initial: Awaited<ReturnType<GoogleGenAI["models"]["generateVideos"]>>
   ): Promise<typeof initial> {
     const maxAttempts = 60;
-    const operation = initial;
+    let operation = initial;
 
     for (let i = 0; i < maxAttempts; i++) {
       console.log(`[Veo] Poll ${i + 1}: done=${operation.done}`);
