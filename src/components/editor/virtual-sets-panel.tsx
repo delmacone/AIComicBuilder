@@ -10,7 +10,7 @@ type VirtualSet = {
   id: string; name: string; description?: string | null; location?: string | null;
   timeOfDay?: string | null; weather?: string | null; lighting?: string | null;
   layoutState?: string | null; propsState?: string | null; damageState?: string | null;
-  continuityLockEnabled?: boolean | number; continuityLockVersion?: number;
+  continuityLockEnabled?: boolean | number; continuityLockVersion?: number; referenceImages?: string | null;
 };
 
 export function VirtualSetsPanel({ projectId, scenes = [], onAssigned }: { projectId: string; scenes?: Array<{ id: string; title: string; virtualSetId?: string | null }>; onAssigned?: () => void }) {
@@ -31,6 +31,16 @@ export function VirtualSetsPanel({ projectId, scenes = [], onAssigned }: { proje
       if (!res.ok) throw new Error((await res.json()).error || "Could not create set"); setName(""); setLocation(""); await load(); toast.success("Virtual Set created");
     } catch (e) { toast.error(e instanceof Error ? e.message : "Could not create set"); } finally { setBusy(false); }
   }
+  async function uploadReference(file: File) {
+    if (!editing) return;
+    const form = new FormData(); form.append("file", file); setBusy(true);
+    try {
+      const res = await apiFetch(`/api/projects/${projectId}/virtual-sets/${editing.id}/upload`, { method: "POST", body: form });
+      if (!res.ok) throw new Error((await res.json()).error || "Could not upload set reference");
+      const data = await res.json(); setEditing(data.set); await load(); toast.success("Approved set reference added");
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Could not upload set reference"); } finally { setBusy(false); }
+  }
+
   async function saveSet() {
     if (!editing) return; setBusy(true);
     try { const res = await apiFetch(`/api/projects/${projectId}/virtual-sets/${editing.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(editing) });
@@ -53,6 +63,7 @@ export function VirtualSetsPanel({ projectId, scenes = [], onAssigned }: { proje
     <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">{sets.map(set=><button key={set.id} onClick={()=>setEditing(set)} className="rounded-lg border p-3 text-left text-sm hover:bg-muted/40"><div className="font-medium">{set.name}</div><div className="text-xs text-muted-foreground">{set.location || "Location not set"}</div><div className="mt-2 flex items-center gap-1 text-[11px]">{set.continuityLockEnabled === 0 ? <Unlock className="h-3 w-3"/>:<Lock className="h-3 w-3"/>}{set.continuityLockEnabled === 0 ? "Unlocked" : `Continuity locked v${set.continuityLockVersion || 1}`}</div></button>)}</div>
     {editing && <div className="rounded-xl border p-4 space-y-3"><div className="font-medium">Set Production State — {editing.name}</div>
       <div className="grid gap-2 md:grid-cols-2">{field("description","Set design / architecture")}{field("location","Location")}{field("timeOfDay","Time of day")}{field("weather","Weather")}{field("lighting","Lighting")}{field("layoutState",'Layout state JSON — {"road":"intact"}')}{field("propsState",'Props state JSON — {"lampPosts":"intact"}')}{field("damageState",'Damage state JSON — {"barrier":"broken"}')}</div>
+      <div className="space-y-2"><div className="text-xs font-medium">Approved visual references</div><input type="file" accept="image/*" disabled={busy} onChange={e=>{const file=e.target.files?.[0]; if(file) void uploadReference(file);}} /><div className="text-[11px] text-muted-foreground">Reference images become visual anchors for every shot using this locked set.</div></div>
       <div className="flex gap-2"><Button onClick={saveSet} disabled={busy}><Save className="mr-1 h-4 w-4"/>Save Set State</Button><Button variant="outline" onClick={()=>setEditing(null)}>Close</Button></div>
     </div>}
   </section>;
