@@ -36,7 +36,15 @@ export async function PATCH(
   if (body.name !== undefined) updateData.name = body.name;
   if (body.description !== undefined) updateData.description = body.description;
   if (body.visualHint !== undefined) updateData.visualHint = body.visualHint;
-  if (body.referenceImage !== undefined) updateData.referenceImage = body.referenceImage;
+  if (body.referenceImage !== undefined) {
+    if (existing.canonLockEnabled === 1 && body.referenceImage !== existing.referenceImage) {
+      return NextResponse.json(
+        { error: "Canon Visual Lock is enabled. Unlock this character before changing the approved reference image." },
+        { status: 409 }
+      );
+    }
+    updateData.referenceImage = body.referenceImage;
+  }
   if (body.scope !== undefined) {
     updateData.scope = body.scope;
     if (body.scope === "main") {
