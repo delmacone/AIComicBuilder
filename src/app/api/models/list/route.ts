@@ -12,7 +12,7 @@ interface ModelItem {
 }
 
 function buildModelsUrl(baseUrl: string): string {
-  let url = baseUrl.replace(/\/+$/, "");
+  const url = baseUrl.replace(/\/+$/, "");
   // If baseUrl already ends with /v1, don't duplicate
   if (url.endsWith("/v1")) {
     return url + "/models";
