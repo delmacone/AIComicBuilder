@@ -131,9 +131,9 @@ function StepRow({
 }) {
   const [open, setOpen] = useState(defaultOpen || isNext);
 
-  useEffect(() => {
-    if (isNext) setOpen(true);
-  }, [isNext]);
+  // isNext is folded into the rendered state so the component does not
+  // synchronously set state from an effect.
+  const isOpen = open || isNext;
 
   return (
     <div className={`rounded-xl border transition-colors ${
@@ -155,13 +155,13 @@ function StepRow({
         }`}>
           {label}
         </span>
-        {open ? (
+        {isOpen ? (
           <ChevronUp className="h-3.5 w-3.5 text-[--text-muted]" />
         ) : (
           <ChevronDown className="h-3.5 w-3.5 text-[--text-muted]" />
         )}
       </button>
-      {open && (
+      {isOpen && (
         <div className="border-t border-[--border-subtle] px-3 pb-3 pt-2.5">
           {children}
         </div>
