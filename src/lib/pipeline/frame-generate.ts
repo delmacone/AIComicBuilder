@@ -144,10 +144,24 @@ export async function handleFrameGenerate(task: Task) {
       ? firstFrameAsset.characters
       : [];
 
+  // Prefer explicit asset character assignments. If absent, infer characters
+  // from this shot's own text instead of attaching arbitrary project characters.
+  // This prevents a locked hero who is not in the shot from being checked or
+  // accidentally conditioned into the generated image.
+  const shotCharacterText = [
+    shot.prompt,
+    shot.videoScript,
+    shot.motionScript,
+    startFrameDescText,
+    endFrameDescText,
+  ].filter(Boolean).join("\n").toLowerCase();
+  const inferredChars = charsWithRefs.filter((c) =>
+    shotCharacterText.includes(c.name.toLowerCase())
+  );
   const relevantChars =
     storedCharNames.length > 0
       ? charsWithRefs.filter((c) => storedCharNames.includes(c.name))
-      : charsWithRefs.slice(0, 3);
+      : inferredChars;
   const charRefImages = relevantChars.map((c) => c.referenceImage as string);
   const canonPromptBlock = buildCanonPromptBlock(relevantChars);
 
