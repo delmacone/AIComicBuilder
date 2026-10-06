@@ -1173,7 +1173,7 @@ export default function EpisodeStoryboardPage() {
         })()
       )}
 
-      <VirtualSetsPanel projectId={project.id} />
+      <VirtualSetsPanel projectId={project.id} scenes={project.scenes ?? []} onAssigned={() => fetchProject(project.id, useProjectStore.getState().currentEpisodeId!)} />
 
       {openDrawerShotId && (
         <ShotDrawer
