@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { shots, characters, projects, episodes, characterCostumes } from "@/lib/db/schema";
-import { resolveImageProvider } from "@/lib/ai/provider-factory";
+import { resolveImageProvider, resolveAIProvider } from "@/lib/ai/provider-factory";
 import type { ModelConfigPayload } from "@/lib/ai/provider-factory";
 import {
   buildFirstFramePrompt,
@@ -74,6 +74,9 @@ export async function handleFrameGenerate(task: Task) {
     .limit(1);
 
   const ai = resolveImageProvider(payload.modelConfig);
+  // Continuity inspection is a multimodal text/vision task. Keep it separate
+  // from the image generator because some image providers cannot inspect images.
+  const continuityAI = resolveAIProvider(payload.modelConfig);
 
   const userId = payload.userId ?? "";
   const projectId = payload.projectId;
@@ -250,7 +253,7 @@ export async function handleFrameGenerate(task: Task) {
         throw new Error(`BlackFist continuity review required for ${c.name}: invalid canon lock`);
       }
       lock.characterName ||= c.name;
-      const result = await checkCanonContinuity(ai, lastFramePath, c.referenceImage as string, lock);
+      const result = await checkCanonContinuity(continuityAI, lastFramePath, c.referenceImage as string, lock);
       continuityResults.push({ character: c.name, ...result });
     }
 
