@@ -39,8 +39,14 @@ export async function handleVideoGenerate(task: Task) {
     .where(eq(characters.projectId, shot.projectId));
   const shotText = [shot.prompt, shot.videoScript, shot.motionScript]
     .filter(Boolean).join("\n").toLowerCase();
+  const assetCharacterNames = new Set<string>();
+  for (const assetType of ["first_frame", "last_frame", "reference"] as const) {
+    const asset = await getActiveAsset(payload.shotId, assetType, 0);
+    for (const name of asset?.characters ?? []) assetCharacterNames.add(name.toLowerCase());
+  }
   const shotHasLockedCanon = lockedCharacters.some(
-    (c) => c.canonLockEnabled === 1 && shotText.includes(c.name.toLowerCase())
+    (c) => c.canonLockEnabled === 1 &&
+      (assetCharacterNames.has(c.name.toLowerCase()) || shotText.includes(c.name.toLowerCase()))
   );
   if (shotHasLockedCanon && shot.continuityStatus !== "passed") {
     throw new Error(`BlackFist continuity gate has not passed for shot ${shot.sequence}; video generation blocked.`);
@@ -88,7 +94,9 @@ export async function handleVideoGenerate(task: Task) {
     characters: projectCharacters,
     slotContents: videoSlots,
   });
-  const videoRelevantCharacters = projectCharacters.filter((c) => shotText.includes(c.name.toLowerCase()));
+  const videoRelevantCharacters = projectCharacters.filter((c) =>
+    assetCharacterNames.has(c.name.toLowerCase()) || shotText.includes(c.name.toLowerCase())
+  );
   const canonPromptBlock = buildCanonPromptBlock(videoRelevantCharacters);
   if (canonPromptBlock) prompt += canonPromptBlock;
 
