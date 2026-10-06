@@ -10,6 +10,7 @@ import { getModelMaxDuration } from "@/lib/ai/model-limits";
 import { eq } from "drizzle-orm";
 import type { Task } from "@/lib/task-queue";
 import { getActiveAsset, insertAssetVersion } from "@/lib/shot-asset-utils";
+import { buildCanonPromptBlock } from "@/lib/pipeline/blackfist-canon-context";
 
 async function getVersionedUploadDirFromPipeline(versionId: string | null | undefined): Promise<string> {
   if (!versionId) return process.env.UPLOAD_DIR || "./uploads";
@@ -72,7 +73,7 @@ export async function handleVideoGenerate(task: Task) {
     .where(eq(shots.id, payload.shotId));
 
   const videoScript = shot.videoScript || shot.motionScript || shot.prompt || "";
-  const prompt = buildVideoPrompt({
+  let prompt = buildVideoPrompt({
     videoScript,
     cameraDirection: shot.cameraDirection || "static",
     startFrameDesc: firstFrameAsset?.prompt ?? undefined,
@@ -81,6 +82,8 @@ export async function handleVideoGenerate(task: Task) {
     characters: projectCharacters,
     slotContents: videoSlots,
   });
+  const canonPromptBlock = buildCanonPromptBlock(projectCharacters);
+  if (canonPromptBlock) prompt += canonPromptBlock;
 
   const result = await videoProvider.generateVideo({
     firstFrame: firstFrameUrl,
