@@ -75,6 +75,9 @@ export const characters = sqliteTable("characters", {
   heightCm: integer("height_cm").default(0),
   bodyType: text("body_type").default("average"),
   isStale: integer("is_stale").notNull().default(0),
+  canonVisualLock: text("canon_visual_lock").default("{}"),
+  canonLockEnabled: integer("canon_lock_enabled").notNull().default(0),
+  canonLockVersion: integer("canon_lock_version").notNull().default(1),
   episodeId: text("episode_id").references(() => episodes.id, {
     onDelete: "cascade",
   }),
@@ -203,6 +206,10 @@ export const shots = sqliteTable("shots", {
   soundDesign: text("sound_design").default(""),
   musicCue: text("music_cue").default(""),
   costumeOverrides: text("costume_overrides").default(""),
+  continuityStatus: text("continuity_status", { enum: ["pending", "passed", "failed", "review_required"] }).notNull().default("pending"),
+  continuityScore: integer("continuity_score").default(0),
+  continuityIssues: text("continuity_issues").default("[]"),
+  continuityRetryCount: integer("continuity_retry_count").notNull().default(0),
   isStale: integer("is_stale").notNull().default(0),
   status: text("status", {
     enum: ["pending", "generating", "completed", "failed"],
