@@ -37,4 +37,6 @@ jobs:
         with:
           name: blackfist-lint
           path: lint.log
-      - name: Production build\n        if: always()\n        run: pnpm build
+      - name: Production build
+        if: always()
+        run: pnpm build
