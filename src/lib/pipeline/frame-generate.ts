@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import { shots, characters, projects, episodes, characterCostumes } from "@/lib/db/schema";
+import { shots, characters, projects, episodes, characterCostumes, scenes } from "@/lib/db/schema";
 import { resolveImageProvider, resolveAIProvider } from "@/lib/ai/provider-factory";
 import type { ModelConfigPayload } from "@/lib/ai/provider-factory";
 import {
@@ -109,6 +109,32 @@ export async function handleFrameGenerate(task: Task) {
   }
   if (colorPalette) {
     compositionSuffix += `\n\nGLOBAL COLOR PALETTE (mandatory): ${colorPalette}. All frames must adhere to this color scheme.`;
+  }
+
+  // Persistent scene continuity: keep location/props/damage/weather/injuries
+  // stable across all shots in the same scene when the state has been defined.
+  if (shot.sceneId) {
+    const [scene] = await db.select().from(scenes).where(eq(scenes.id, shot.sceneId));
+    if (scene) {
+      const sceneRules: string[] = [];
+      if (scene.title) sceneRules.push(`Location/scene: ${scene.title}`);
+      if (scene.description) sceneRules.push(`Scene description: ${scene.description}`);
+      if (scene.lighting) sceneRules.push(`Lighting: ${scene.lighting}`);
+      if (scene.colorPalette) sceneRules.push(`Scene colours: ${scene.colorPalette}`);
+      try {
+        const state = JSON.parse(scene.continuityState || "{}");
+        for (const [key, value] of Object.entries(state)) {
+          if (value !== undefined && value !== null && value !== "") {
+            sceneRules.push(`${key}: ${Array.isArray(value) ? value.join(", ") : String(value)}`);
+          }
+        }
+      } catch {
+        sceneRules.push("Scene continuity metadata requires review.");
+      }
+      if (sceneRules.length) {
+        compositionSuffix += `\n\nBLACKFIST SCENE CONTINUITY — preserve across shots:\n${sceneRules.join("\n")}`;
+      }
+    }
   }
 
   // Build character height context for multi-character shots
