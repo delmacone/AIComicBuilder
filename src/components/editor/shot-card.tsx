@@ -198,6 +198,27 @@ export function ShotCard({
   const soundDesign = shot.soundDesign;
   const musicCue = shot.musicCue;
   const isStale = shot.isStale;
+  const [lioncoreRetrying, setLioncoreRetrying] = useState(false);
+  async function retryWithLioncore() {
+    if (lioncoreRetrying) return;
+    if (!window.confirm(`Ask Lioncore to regenerate Shot ${sequence}? Approved character canon will remain locked.`)) return;
+    setLioncoreRetrying(true);
+    try {
+      const response = await apiFetch(`/api/projects/${projectId}/lioncore`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "retry_shot", shotId: id, confirm: true }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Lioncore retry failed");
+      toast.success(data.reply || `Shot ${sequence} queued for regeneration`);
+      onUpdate();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Lioncore retry failed");
+    } finally {
+      setLioncoreRetrying(false);
+    }
+  }
   const dialogues = shot.dialogues ?? [];
   const firstFrame = getFirstFrameUrl(shot);
   const lastFrame = getLastFrameUrl(shot);
@@ -847,6 +868,18 @@ export function ShotCard({
               }`}>
                 CANON {shot.continuityStatus === "passed" ? `PASS ${shot.continuityScore ?? ""}` : shot.continuityStatus.replace("_", " ").toUpperCase()}
               </span>
+            ) : null}
+            {(shot.continuityStatus === "failed" || shot.continuityStatus === "review_required") ? (
+              <button
+                type="button"
+                onClick={retryWithLioncore}
+                disabled={lioncoreRetrying}
+                className="inline-flex items-center gap-1 rounded-full border border-amber-300 px-2 py-0.5 text-[10px] font-semibold text-amber-800 hover:bg-amber-50 disabled:opacity-50"
+                title="Regenerate this failed shot through the BlackFist canon pipeline"
+              >
+                {lioncoreRetrying ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                Lioncore Retry
+              </button>
             ) : null}
           </div>
           <div className="mt-1 flex items-center gap-2">
