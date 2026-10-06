@@ -20,6 +20,24 @@ export function LioncorePanel({ projectId }: { projectId: string }) {
     } catch {}
   }, [storageKey]);
 
+  async function runAction(action: "audit_continuity") {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const response = await apiFetch(`/api/projects/${projectId}/lioncore`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await response.json();
+      const nextReply = response.ok ? data.reply : data.error || "Lioncore action failed.";
+      setReply(nextReply);
+      try { sessionStorage.setItem(storageKey, nextReply); } catch {}
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function askLioncore() {
     if (!message.trim() || loading) return;
     setLoading(true);
@@ -61,6 +79,11 @@ export function LioncorePanel({ projectId }: { projectId: string }) {
           <div className="text-[11px] text-muted-foreground">BlackFist Production Intelligence</div>
         </div>
         <button onClick={() => setOpen(false)}><X className="h-4 w-4" /></button>
+      </div>
+      <div className="mb-2 flex gap-2">
+        <Button size="sm" variant="outline" onClick={() => runAction("audit_continuity")} disabled={loading}>
+          Audit Continuity
+        </Button>
       </div>
       {reply ? <div className="mb-3 max-h-64 overflow-y-auto whitespace-pre-wrap rounded-xl bg-[--surface] p-3 text-sm">{reply}</div> : null}
       <Textarea
