@@ -30,14 +30,14 @@ export async function POST(
   }
 
   const body = await request.json() as Partial<CanonVisualLock>;
-  const required = {
-    skinTone: required.skinTone,
-    hair: required.hair,
-    bodyBuild: required.bodyBuild,
-    costume: required.costume,
-    emblem: required.emblem,
+  const requiredFields = {
+    skinTone: cleanString(body.skinTone),
+    hair: cleanString(body.hair),
+    bodyBuild: cleanString(body.bodyBuild) || cleanString(character.bodyType),
+    costume: cleanString(body.costume),
+    emblem: cleanString(body.emblem),
   };
-  const missing = Object.entries(required).filter(([, value]) => !value).map(([key]) => key);
+  const missing = Object.entries(requiredFields).filter(([, value]) => !value).map(([key]) => key);
   if (missing.length > 0) {
     return NextResponse.json(
       { error: `Canon Visual Lock is incomplete. Add: ${missing.join(", ")}.`, missing },
