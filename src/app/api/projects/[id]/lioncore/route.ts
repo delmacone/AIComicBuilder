@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { projects, characters, scenes, shots } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
+import { enqueueTask } from "@/lib/task-queue";
 import { assertProjectOwnership } from "@/lib/assert-project-ownership";
 
 export async function POST(
@@ -17,7 +18,7 @@ export async function POST(
     return NextResponse.json({ error: "Lioncore is not connected. Add OPENAI_API_KEY on the server." }, { status: 503 });
   }
 
-  const body = await request.json() as { message?: string; action?: "audit_continuity" | "scene_review"; sceneId?: string };
+  const body = await request.json() as { message?: string; action?: "audit_continuity" | "scene_review" | "retry_shot"; sceneId?: string; shotId?: string; confirm?: boolean };
   const message = body.message?.trim() || "";
   if (!message && !body.action) return NextResponse.json({ error: "Message or action required" }, { status: 400 });
 
@@ -61,6 +62,28 @@ export async function POST(
         ? `Continuity audit found ${problemShots.length} shot(s) requiring attention:\n` + problemShots.map((s) => `Shot ${s.sequence}: ${s.status} (score ${s.score ?? 0}) — ${s.issues || "review required"}`).join("\n")
         : "Continuity audit: no failed or review-required shots found.",
       results: problemShots,
+    });
+  }
+
+  if (body.action === "retry_shot") {
+    if (!body.confirm) {
+      return NextResponse.json({ error: "Explicit confirmation is required before Lioncore regenerates production frames." }, { status: 409 });
+    }
+    const target = projectShots.find((s) => s.id === body.shotId);
+    if (!target) return NextResponse.json({ error: "Shot not found" }, { status: 404 });
+    if (target.continuityStatus === "passed") {
+      return NextResponse.json({ error: "Shot already passed canon continuity. Lioncore will not replace an approved shot automatically." }, { status: 409 });
+    }
+    const task = await enqueueTask({
+      type: "frame_generate",
+      projectId,
+      episodeId: target.episodeId || undefined,
+      payload: { shotId: target.id, projectId },
+    });
+    return NextResponse.json({
+      action: body.action,
+      taskId: task.id,
+      reply: `Lioncore queued Shot ${target.sequence} for controlled frame regeneration. Locked canon remains unchanged.`,
     });
   }
 
