@@ -120,6 +120,10 @@ export const scenes = sqliteTable("scenes", {
   description: text("description").default(""),
   lighting: text("lighting").default(""),
   colorPalette: text("color_palette").default(""),
+  // BlackFist persistent scene state: location, props, damage, weather,
+  // injuries and other visual facts that must survive across shots.
+  continuityState: text("continuity_state").default("{}"),
+  continuityStateVersion: integer("continuity_state_version").notNull().default(1),
   sequence: integer("sequence").notNull().default(0),
   createdAt: integer("created_at", { mode: "timestamp" })
     .notNull()
