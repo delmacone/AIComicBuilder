@@ -236,6 +236,16 @@ export async function handleFrameGenerate(task: Task) {
     ? (await getActiveAsset(previousShot.id, "last_frame", 0))?.fileUrl ?? undefined
     : undefined;
 
+  const lockedWithoutReference = relevantChars.filter((c) => c.canonLockEnabled === 1 && !c.referenceImage);
+  if (lockedWithoutReference.length > 0) {
+    const names = lockedWithoutReference.map((c) => c.name);
+    await db.update(shots).set({
+      continuityStatus: "review_required",
+      continuityScore: 0,
+      continuityIssues: JSON.stringify(names.map((name) => name + ": approved canon reference image is missing")),
+    }).where(eq(shots.id, payload.shotId));
+    throw new Error("BlackFist continuity review required: missing approved canon reference");
+  }
   const lockedRelevantChars = relevantChars.filter(
     (c) => c.canonLockEnabled === 1 && !!c.referenceImage
   );
