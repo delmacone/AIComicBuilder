@@ -171,8 +171,20 @@ export async function handleFrameGenerate(task: Task) {
   if (firstFrameAsset) await patchAsset(firstFrameAsset.id, { status: "generating" });
   if (lastFrameAsset) await patchAsset(lastFrameAsset.id, { status: "generating" });
 
-  // For visual continuity, look up the previous shot's last_frame asset.
-  const prevLastFrameUrl = previousShot
+  // For visual continuity, inherit only from a previous frame that is safe.
+  // A failed/review-required canon shot must never contaminate the next shot.
+  const previousShotHasLockedCanon = previousShot
+    ? projectCharacters.some((c) => {
+        if (c.canonLockEnabled !== 1) return false;
+        const text = [previousShot.prompt, previousShot.videoScript, previousShot.motionScript]
+          .filter(Boolean).join("\n").toLowerCase();
+        return text.includes(c.name.toLowerCase());
+      })
+    : false;
+  const previousShotApproved = previousShot
+    ? (!previousShotHasLockedCanon || previousShot.continuityStatus === "passed")
+    : false;
+  const prevLastFrameUrl = previousShot && previousShotApproved
     ? (await getActiveAsset(previousShot.id, "last_frame", 0))?.fileUrl ?? undefined
     : undefined;
 
