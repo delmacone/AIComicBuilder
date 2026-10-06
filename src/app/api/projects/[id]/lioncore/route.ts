@@ -18,7 +18,7 @@ export async function POST(
     return NextResponse.json({ error: "Lioncore is not connected. Add OPENAI_API_KEY on the server." }, { status: 503 });
   }
 
-  const body = await request.json() as { message?: string; action?: "audit_continuity" | "scene_review" | "retry_shot"; sceneId?: string; shotId?: string; confirm?: boolean };
+  const body = await request.json() as { message?: string; action?: "audit_continuity" | "scene_review" | "retry_shot"; sceneId?: string; shotId?: string; confirm?: boolean; modelConfig?: unknown };
   const message = body.message?.trim() || "";
   if (!message && !body.action) return NextResponse.json({ error: "Message or action required" }, { status: 400 });
 
@@ -78,7 +78,7 @@ export async function POST(
       type: "frame_generate",
       projectId,
       episodeId: target.episodeId || undefined,
-      payload: { shotId: target.id, projectId },
+      payload: { shotId: target.id, projectId, modelConfig: body.modelConfig },
     });
     return NextResponse.json({
       action: body.action,
