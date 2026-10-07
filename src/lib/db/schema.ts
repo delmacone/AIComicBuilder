@@ -149,6 +149,23 @@ export const blackfistSequences = sqliteTable("blackfist_sequences", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
 
+export const blackfistSequenceAudioAssets = sqliteTable("blackfist_sequence_audio_assets", {
+  id: text("id").primaryKey(),
+  sequenceId: text("sequence_id").notNull().references(() => blackfistSequences.id, { onDelete: "cascade" }),
+  projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  shotId: text("shot_id"),
+  kind: text("kind").notNull(),
+  prompt: text("prompt").notNull().default(""),
+  provider: text("provider").notNull().default(""),
+  model: text("model").notNull().default(""),
+  status: text("status").notNull().default("pending"),
+  fileUrl: text("file_url"),
+  metadata: text("metadata").notNull().default("{}"),
+  version: integer("version").notNull().default(1),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+});
+
 export const scenes = sqliteTable("scenes", {
   id: text("id").primaryKey(),
   episodeId: text("episode_id")
