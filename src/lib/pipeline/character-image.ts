@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
-import { characters } from "@/lib/db/schema";
+import { characters, projects } from "@/lib/db/schema";
+import { buildVisualStylePrompt } from "@/lib/pipeline/blackfist-visual-style";
 import { resolveImageProvider } from "@/lib/ai/provider-factory";
 import type { ModelConfigPayload } from "@/lib/ai/provider-factory";
 import { buildCharacterTurnaroundPrompt } from "@/lib/ai/prompts/character-image";
@@ -26,7 +27,10 @@ export async function handleCharacterImage(task: Task) {
   }
 
   const ai = resolveImageProvider(payload.modelConfig);
-  const prompt = buildCharacterTurnaroundPrompt(character.description || character.name, character.name);
+  const [project] = await db.select().from(projects).where(eq(projects.id, character.projectId));
+  const stylePrompt = project ? buildVisualStylePrompt(project) : "";
+  let prompt = buildCharacterTurnaroundPrompt(character.description || character.name, character.name);
+  if (stylePrompt) prompt += `\n\n${stylePrompt}`;
 
   const imagePath = await ai.generateImage(prompt, {
     size: "2560x1440",
