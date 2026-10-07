@@ -132,6 +132,21 @@ export const virtualSets = sqliteTable("virtual_sets", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
 
+export const blackfistSequences = sqliteTable("blackfist_sequences", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  episodeId: text("episode_id").references(() => episodes.id, { onDelete: "cascade" }),
+  sceneId: text("scene_id"),
+  name: text("name").notNull(),
+  engine: text("engine").notNull().default("unassigned"),
+  status: text("status").notNull().default("draft"),
+  shotIds: text("shot_ids").notNull().default("[]"),
+  plan: text("plan").notNull().default("{}"),
+  continuitySnapshot: text("continuity_snapshot").notNull().default("{}"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+});
+
 export const scenes = sqliteTable("scenes", {
   id: text("id").primaryKey(),
   episodeId: text("episode_id")
