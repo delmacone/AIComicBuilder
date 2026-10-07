@@ -202,7 +202,6 @@ export async function handleFrameGenerate(task: Task) {
 
   // Pick character refs to attach as visual anchors. Prefer characters listed
   // on the asset row; fall back to first 3 chars with reference images.
-  const charsWithRefs = projectCharacters.filter((c) => !!c.referenceImage);
   const storedCharNames: string[] =
     firstFrameAsset?.characters && firstFrameAsset.characters.length > 0
       ? firstFrameAsset.characters
@@ -219,14 +218,19 @@ export async function handleFrameGenerate(task: Task) {
     startFrameDescText,
     endFrameDescText,
   ].filter(Boolean).join("\n").toLowerCase();
-  const inferredChars = charsWithRefs.filter((c) =>
+  // Detect the cast from ALL project characters first. Reference availability
+  // is a separate safety concern: a locked character must not disappear from
+  // continuity checking merely because its approved reference is missing.
+  const inferredChars = projectCharacters.filter((c) =>
     shotCharacterText.includes(c.name.toLowerCase())
   );
   const relevantChars =
     storedCharNames.length > 0
-      ? charsWithRefs.filter((c) => storedCharNames.includes(c.name))
+      ? projectCharacters.filter((c) => storedCharNames.includes(c.name))
       : inferredChars;
-  const charRefImages = relevantChars.map((c) => c.referenceImage as string);
+  const charRefImages = relevantChars
+    .filter((c) => !!c.referenceImage)
+    .map((c) => c.referenceImage as string);
   let canonPromptBlock = buildCanonPromptBlock(relevantChars);
   if (visualStylePrompt) canonPromptBlock += `\n\n${visualStylePrompt}`;
 
