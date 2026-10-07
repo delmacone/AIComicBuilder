@@ -18,7 +18,7 @@ export async function POST(
     return NextResponse.json({ error: "Lioncore is not connected. Add OPENAI_API_KEY on the server." }, { status: 503 });
   }
 
-  const body = await request.json() as { message?: string; action?: "audit_continuity" | "scene_review" | "retry_shot"; sceneId?: string; shotId?: string; confirm?: boolean; modelConfig?: unknown };
+  const body = await request.json() as { message?: string; action?: "audit_continuity" | "scene_review" | "retry_shot" | "detect_scene_events" | "apply_scene_events"; sceneId?: string; shotId?: string; confirm?: boolean; modelConfig?: unknown };
   const message = body.message?.trim() || "";
   if (!message && !body.action) return NextResponse.json({ error: "Message or action required" }, { status: 400 });
 
@@ -85,6 +85,31 @@ export async function POST(
       taskId: task.id,
       reply: `Lioncore queued Shot ${target.sequence} for controlled frame regeneration. Locked canon remains unchanged.`,
     });
+  }
+
+  if (body.action === "detect_scene_events" || body.action === "apply_scene_events") {
+    const scene = projectScenes.find((item) => item.id === body.sceneId);
+    if (!scene) return NextResponse.json({ error: "Scene not found" }, { status: 404 });
+    const sceneShots = projectShots.filter((item) => item.sceneId === scene.id).sort((a, b) => a.sequence - b.sequence);
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const response = await client.responses.create({
+      model: process.env.LIONCORE_OPENAI_MODEL || "gpt-6-luna",
+      instructions: "You are Lioncore, continuity supervisor. Identify only persistent production changes later shots must remember: environment changes, moved or dropped props, character condition, wardrobe condition, weather, lighting, position, or persistent visual effects. Do not invent events. Return JSON only with an events array. Each event has type, target, change, and shotId.",
+      input: JSON.stringify({ scene: { id: scene.id, title: scene.title, description: scene.description, continuityState: scene.continuityState }, shots: sceneShots.map((shot) => ({ id: shot.id, sequence: shot.sequence, prompt: shot.prompt, motionScript: shot.motionScript, videoScript: shot.videoScript })) }),
+    });
+    const match = response.output_text.match(/\{[\s\S]*\}/);
+    if (!match) return NextResponse.json({ error: "Lioncore returned no valid event proposal" }, { status: 502 });
+    const parsed = JSON.parse(match[0]) as { events?: Array<{ type?: string; target?: string; change?: string; shotId?: string }> };
+    const events = (parsed.events || []).filter((event) => event.target && event.change);
+    if (body.action === "detect_scene_events") return NextResponse.json({ action: body.action, events, reply: events.length ? "Lioncore found " + events.length + " persistent scene event(s). Review before applying." : "Lioncore found no persistent scene events to add." });
+    if (!body.confirm) return NextResponse.json({ error: "Explicit confirmation is required before Lioncore changes Scene Memory.", events }, { status: 409 });
+    let state: Record<string, unknown> = {}; try { state = JSON.parse(scene.continuityState || "{}"); } catch {}
+    const existingEvents = Array.isArray(state.events) ? state.events : [];
+    const persistentChanges = state.persistentChanges && typeof state.persistentChanges === "object" ? state.persistentChanges as Record<string, unknown> : {};
+    for (const event of events) { existingEvents.push({ ...event, recordedAt: new Date().toISOString(), source: "lioncore" }); if (event.target) persistentChanges[event.target] = event.change; }
+    state.events = existingEvents; state.persistentChanges = persistentChanges;
+    await db.update(scenes).set({ continuityState: JSON.stringify(state), continuityStateVersion: scene.continuityStateVersion + 1 }).where(eq(scenes.id, scene.id));
+    return NextResponse.json({ action: body.action, events, reply: "Lioncore applied " + events.length + " confirmed event(s) to Scene Memory." });
   }
 
   if (body.action === "scene_review") {
