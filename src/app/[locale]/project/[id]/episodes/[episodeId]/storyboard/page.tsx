@@ -49,6 +49,7 @@ import { AgentPicker } from "@/components/agent-picker";
 import Link from "next/link";
 import { LioncorePanel } from "@/components/lioncore-panel";
 import { VirtualSetsPanel } from "@/components/editor/virtual-sets-panel";
+import { VisualStyleLockPanel } from "@/components/editor/visual-style-lock-panel";
 import { SceneEventMemory } from "@/components/editor/scene-event-memory";
 
 export default function EpisodeStoryboardPage() {
@@ -1178,6 +1179,7 @@ export default function EpisodeStoryboardPage() {
         })()
       )}
 
+              <VisualStyleLockPanel project={project} onUpdated={() => fetchProject(project.id, useProjectStore.getState().currentEpisodeId!)} />
       <VirtualSetsPanel projectId={project.id} scenes={project.scenes ?? []} onAssigned={() => fetchProject(project.id, useProjectStore.getState().currentEpisodeId!)} />
 
       {openDrawerShotId && (
