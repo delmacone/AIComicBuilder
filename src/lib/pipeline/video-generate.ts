@@ -45,11 +45,13 @@ export async function handleVideoGenerate(task: Task) {
     const asset = await getActiveAsset(payload.shotId, assetType, 0);
     for (const name of asset?.characters ?? []) assetCharacterNames.add(name.toLowerCase());
   }
+  const [gateProject] = await db.select().from(projects).where(eq(projects.id, shot.projectId));
   const shotHasLockedCanon = lockedCharacters.some(
     (c) => c.canonLockEnabled === 1 &&
       (assetCharacterNames.has(c.name.toLowerCase()) || shotText.includes(c.name.toLowerCase()))
   );
-  if (shotHasLockedCanon && shot.continuityStatus !== "passed") {
+  const shotRequiresContinuityGate = shotHasLockedCanon || gateProject?.visualStyleLockEnabled === 1;
+  if (shotRequiresContinuityGate && shot.continuityStatus !== "passed") {
     throw new Error(`BlackFist continuity gate has not passed for shot ${shot.sequence}; video generation blocked.`);
   }
 
@@ -100,8 +102,7 @@ export async function handleVideoGenerate(task: Task) {
   );
   const canonPromptBlock = buildCanonPromptBlock(videoRelevantCharacters);
   if (canonPromptBlock) prompt += canonPromptBlock;
-  const [project] = await db.select().from(projects).where(eq(projects.id, shot.projectId));
-  const stylePrompt = project ? buildVisualStylePrompt(project) : "";
+  const stylePrompt = gateProject ? buildVisualStylePrompt(gateProject) : "";
   if (stylePrompt) prompt += `\n\n${stylePrompt}`;
 
   const result = await videoProvider.generateVideo({
