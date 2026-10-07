@@ -50,6 +50,7 @@ import Link from "next/link";
 import { LioncorePanel } from "@/components/lioncore-panel";
 import { VirtualSetsPanel } from "@/components/editor/virtual-sets-panel";
 import { VisualStyleLockPanel } from "@/components/editor/visual-style-lock-panel";
+import { SequencePlanner } from "@/components/editor/sequence-planner";
 import { SceneEventMemory } from "@/components/editor/scene-event-memory";
 
 export default function EpisodeStoryboardPage() {
@@ -1179,6 +1180,7 @@ export default function EpisodeStoryboardPage() {
         })()
       )}
 
+              <SequencePlanner projectId={project.id} scenes={project.scenes} />
               <VisualStyleLockPanel project={project} onUpdated={() => fetchProject(project.id, useProjectStore.getState().currentEpisodeId!)} />
       <VirtualSetsPanel projectId={project.id} scenes={project.scenes ?? []} onAssigned={() => fetchProject(project.id, useProjectStore.getState().currentEpisodeId!)} />
 
