@@ -13,6 +13,7 @@ import { getActiveAsset, insertAssetVersion, patchAsset } from "@/lib/shot-asset
 import { checkCanonContinuity, type CanonVisualLock } from "@/lib/pipeline/blackfist-continuity-check";
 import { buildCanonPromptBlock } from "@/lib/pipeline/blackfist-canon-context";
 import { buildVisualStylePrompt } from "@/lib/pipeline/blackfist-visual-style";
+import { checkVirtualSetContinuity } from "@/lib/pipeline/blackfist-virtual-set-check";
 
 export async function handleFrameGenerate(task: Task) {
   const payload = task.payload as {
@@ -115,6 +116,7 @@ export async function handleFrameGenerate(task: Task) {
   }
 
   const setRefImages: string[] = [];
+  let lockedVirtualSetState: Record<string, unknown> | null = null;
 
   // Persistent scene continuity: keep location/props/damage/weather/injuries
   // stable across all shots in the same scene when the state has been defined.
@@ -130,6 +132,7 @@ export async function handleFrameGenerate(task: Task) {
         const [set] = await db.select().from(virtualSets).where(eq(virtualSets.id, scene.virtualSetId));
         if (set?.continuityLockEnabled) {
           sceneRules.push(`VIRTUAL SET LOCK: ${set.name}`);
+          lockedVirtualSetState = { name: set.name, location: set.location, description: set.description, timeOfDay: set.timeOfDay, weather: set.weather, lighting: set.lighting, layoutState: set.layoutState, propsState: set.propsState, damageState: set.damageState };
           if (set.location) sceneRules.push(`Set location: ${set.location}`);
           if (set.description) sceneRules.push(`Set design: ${set.description}`);
           if (set.timeOfDay) sceneRules.push(`Time of day: ${set.timeOfDay}`);
@@ -285,7 +288,7 @@ export async function handleFrameGenerate(task: Task) {
   const MAX_CONTINUITY_ATTEMPTS = 3;
   let firstFramePath = "";
   let lastFramePath = "";
-  let continuityPassed = lockedRelevantChars.length === 0;
+  let continuityPassed = lockedRelevantChars.length === 0 && !lockedVirtualSetState;
 
   for (let attempt = 1; attempt <= MAX_CONTINUITY_ATTEMPTS; attempt++) {
     let firstFramePrompt = buildFirstFramePrompt({
@@ -357,6 +360,21 @@ export async function handleFrameGenerate(task: Task) {
           ...firstResult.issues.map((issue) => `first frame: ${issue}`),
           ...lastResult.issues.map((issue) => `last frame: ${issue}`),
         ],
+      });
+    }
+
+    if (lockedVirtualSetState) {
+      const firstSet = await checkVirtualSetContinuity(continuityAI, firstFramePath, setRefImages, lockedVirtualSetState);
+      const lastSet = await checkVirtualSetContinuity(continuityAI, lastFramePath, setRefImages, lockedVirtualSetState);
+      const rank = { passed: 0, failed: 1, review_required: 2 } as const;
+      const status = rank[firstSet.status] >= rank[lastSet.status] ? firstSet.status : lastSet.status;
+      continuityResults.push({
+        character: "Virtual Set",
+        status,
+        score: Math.min(firstSet.score, lastSet.score),
+        identityScore: Math.min(firstSet.geographyScore, lastSet.geographyScore),
+        costumeScore: Math.min(firstSet.stateScore, lastSet.stateScore),
+        issues: [...firstSet.issues.map(issue => `first frame: ${issue}`), ...lastSet.issues.map(issue => `last frame: ${issue}`)],
       });
     }
 
