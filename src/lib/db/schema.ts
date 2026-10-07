@@ -152,6 +152,8 @@ export const blackfistSequences = sqliteTable("blackfist_sequences", {
   finalVideoUrl: text("final_video_url"),
   avStatus: text("av_status").notNull().default("pending"),
   avQc: text("av_qc").notNull().default("{}"),
+  providerTaskId: text("provider_task_id"),
+  providerMetadata: text("provider_metadata").notNull().default("{}"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
