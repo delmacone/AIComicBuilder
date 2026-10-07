@@ -12,7 +12,7 @@ export async function GET(request: Request,{params}:{params:Promise<{id:string}>
 }
 export async function POST(request: Request,{params}:{params:Promise<{id:string}>}) {
  const {id}=await params; if(!(await assertProjectOwnership(request,id))) return NextResponse.json({error:"Not found"},{status:404});
- const body=await request.json() as {sceneId?:string;name?:string;shotIds?:string[]};
+ const body=await request.json() as {sceneId?:string;name?:string;shotIds?:string[];direction?:unknown[]};
  if(!body.sceneId) return NextResponse.json({error:"Scene required"},{status:400});
  const [scene]=await db.select().from(scenes).where(and(eq(scenes.id,body.sceneId),eq(scenes.projectId,id)));
  if(!scene) return NextResponse.json({error:"Scene not found"},{status:404});
@@ -21,7 +21,7 @@ export async function POST(request: Request,{params}:{params:Promise<{id:string}
  if(requested.length<2 || requested.length>5) return NextResponse.json({error:"A BlackFist sequence requires 2 to 5 shots"},{status:400});
  const [project]=await db.select().from(projects).where(eq(projects.id,id));
  const snapshot={sceneState:scene.continuityState,sceneStateVersion:scene.continuityStateVersion,visualStylePreset:project?.visualStylePreset,visualStyleLockVersion:project?.visualStyleLockVersion};
- const plan={shots:requested.map(s=>({id:s.id,sequence:s.sequence,prompt:s.prompt,cameraDirection:s.cameraDirection,duration:s.duration,continuityStatus:s.continuityStatus}))};
+ const plan={shots:requested.map(s=>({id:s.id,sequence:s.sequence,prompt:s.prompt,cameraDirection:s.cameraDirection,duration:s.duration,continuityStatus:s.continuityStatus})),direction:body.direction||[]};
  const [created]=await db.insert(blackfistSequences).values({id:randomUUID(),projectId:id,episodeId:scene.episodeId,sceneId:scene.id,name:body.name?.trim()||`${scene.title||"Scene"} Multi-Shot`,shotIds:JSON.stringify(requested.map(s=>s.id)),plan:JSON.stringify(plan),continuitySnapshot:JSON.stringify(snapshot)}).returning();
  return NextResponse.json(created,{status:201});
 }
