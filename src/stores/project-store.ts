@@ -20,6 +20,8 @@ interface Scene {
   title: string;
   description?: string | null;
   virtualSetId?: string | null;
+  continuityState?: string | null;
+  continuityStateVersion?: number;
   sequence: number;
 }
 
