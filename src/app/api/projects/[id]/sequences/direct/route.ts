@@ -22,7 +22,7 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string}>
   input:JSON.stringify({project:{title:project?.title,style:project?.visualStylePreset},scene:{id:scene.id,title:scene.title,description:scene.description,continuityState:scene.continuityState},virtualSet:set&&{name:set.name,description:set.description,location:set.location,timeOfDay:set.timeOfDay,weather:set.weather,lighting:set.lighting,layoutState:set.layoutState,propsState:set.propsState,damageState:set.damageState},cast:cast.map(c=>({id:c.id,name:c.name,canonLocked:c.canonLockEnabled===1})),shots:sceneShots.map(s=>({id:s.id,sequence:s.sequence,prompt:s.prompt,motionScript:s.motionScript,cameraDirection:s.cameraDirection,duration:s.duration,continuityStatus:s.continuityStatus}))})
  });
  const match=response.output_text.match(/\{[\s\S]*\}/); if(!match)return NextResponse.json({error:"Lioncore returned no valid sequence plan"},{status:502});
- const plan=JSON.parse(match[0]) as {shotIds?:string[];rationale?:string;direction?:unknown[]};
+ let plan:{shotIds?:string[];rationale?:string;direction?:unknown[]}; try{plan=JSON.parse(match[0]) as typeof plan;}catch{return NextResponse.json({error:"Lioncore returned malformed sequence JSON"},{status:502});}
  const valid=new Set(sceneShots.map(s=>s.id)); const shotIds=(plan.shotIds||[]).filter(x=>valid.has(x)).slice(0,5);
  if(shotIds.length<2)return NextResponse.json({error:"Lioncore did not return enough valid shots"},{status:502});
  shotIds.sort((a,b)=>sceneShots.findIndex(s=>s.id===a)-sceneShots.findIndex(s=>s.id===b));
