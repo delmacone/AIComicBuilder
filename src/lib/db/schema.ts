@@ -136,7 +136,7 @@ export const blackfistSequences = sqliteTable("blackfist_sequences", {
   id: text("id").primaryKey(),
   projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
   episodeId: text("episode_id").references(() => episodes.id, { onDelete: "cascade" }),
-  sceneId: text("scene_id").references(() => scenes.id, { onDelete: "cascade" }),
+  sceneId: text("scene_id"),
   name: text("name").notNull(),
   engine: text("engine").notNull().default("unassigned"),
   status: text("status").notNull().default("draft"),
