@@ -156,6 +156,8 @@ export const blackfistSequences = sqliteTable("blackfist_sequences", {
   providerMetadata: text("provider_metadata").notNull().default("{}"),
   inheritedFromSequenceId: text("inherited_from_sequence_id"),
   continuityAnchorUrl: text("continuity_anchor_url"),
+  inheritedState: text("inherited_state").notNull().default("{}"),
+  inheritedStateVersion: integer("inherited_state_version").notNull().default(0),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
