@@ -10,11 +10,11 @@ export async function GET(request:Request,{params}:{params:Promise<{id:string;se
  const [seq]=await db.select().from(blackfistSequences).where(and(eq(blackfistSequences.id,sequenceId),eq(blackfistSequences.projectId,id)));if(!seq)return NextResponse.json({error:"Sequence not found"},{status:404});
  let p:any={};try{p=JSON.parse(seq.audioPlan||"{}")}catch{return NextResponse.json({error:"Invalid audio plan"},{status:409})}
  const cues:Cue[]=[];
- for(const x of p.ambience||[])cues.push({kind:"ambience",shotId:x.startShotId,description:x.description||x.cue||"Ambience",status:"needs_generation"});
- for(const x of p.dialogue||[])cues.push({kind:"dialogue",shotId:x.shotId,description:`${x.character||"Character"} dialogue`,text:x.text,character:x.character,existingAudioUrl:x.existingAudioUrl||null,status:x.existingAudioUrl?"ready":"needs_generation"});
+ for(const x of p.ambience||[])cues.push({kind:"ambience",shotId:x.startShotId,description:x.description||x.cue||"Ambience",status:"needs_generation" as Cue["status"]});
+ for(const x of p.dialogue||[])cues.push({kind:"dialogue",shotId:x.shotId,description:`${x.character||"Character"} dialogue`,text:x.text,character:x.character,existingAudioUrl:x.existingAudioUrl||null,status:(x.existingAudioUrl?"ready":"needs_generation") as Cue["status"]});
  for(const x of p.sfx||[])cues.push({kind:"sfx",shotId:x.shotId,description:x.cue||"Sound effect",status:"needs_generation"});
  for(const x of p.music||[])cues.push({kind:"music",shotId:x.startShotId,description:x.cue||x.mood||"Music",status:"needs_generation"});
- for(const x of p.transitions||[])cues.push({kind:"transition",shotId:x.fromShotId,description:x.audioBridge||"Audio bridge",status:"planned"});
+ for(const x of p.transitions||[])cues.push({kind:"transition",shotId:x.fromShotId,description:x.audioBridge||"Audio bridge",status:"planned" as Cue["status"]});
  const counts=cues.reduce((a,c)=>(a[c.kind]=(a[c.kind]||0)+1,a),{} as Record<string,number>);
  return NextResponse.json({sequenceId,status:seq.audioStatus,counts,cues,providerReadiness:{dialogue:"Existing dialogue audio is reused. Missing dialogue requires a configured voice/TTS provider.",sfx:"Planned and provider-ready; no SFX generation provider is configured in this repository yet.",music:"Planned and provider-ready; no music generation provider is configured in this repository yet."}});
 }
