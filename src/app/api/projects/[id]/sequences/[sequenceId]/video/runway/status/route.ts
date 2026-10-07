@@ -1,0 +1,7 @@
+import { NextResponse } from "next/server";
+import { and,eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { blackfistSequences } from "@/lib/db/schema";
+import { assertProjectOwnership } from "@/lib/assert-project-ownership";
+import { getRunwayTask } from "@/lib/video/runway-multishot";
+export async function GET(request:Request,{params}:{params:Promise<{id:string;sequenceId:string}>}){const {id,sequenceId}=await params;if(!(await assertProjectOwnership(request,id)))return NextResponse.json({error:"Not found"},{status:404});const [seq]=await db.select().from(blackfistSequences).where(and(eq(blackfistSequences.id,sequenceId),eq(blackfistSequences.projectId,id)));if(!seq?.providerTaskId)return NextResponse.json({error:"No Runway task for this sequence"},{status:404});const task=await getRunwayTask(seq.providerTaskId);const completed=task.status==="SUCCEEDED"&&Array.isArray(task.output)&&typeof task.output[0]==="string";const failed=task.status==="FAILED";await db.update(blackfistSequences).set({status:completed?"video_ready":failed?"failed":"generating",videoUrl:completed?task.output![0]:seq.videoUrl,providerMetadata:JSON.stringify({taskId:task.id,status:task.status,failure:task.failure||null,failureCode:task.failureCode||null}),updatedAt:new Date()}).where(eq(blackfistSequences.id,sequenceId));return NextResponse.json({sequenceId,status:completed?"video_ready":failed?"failed":"generating",videoUrl:completed?task.output![0]:null,providerStatus:task.status,failure:task.failure||null});}
