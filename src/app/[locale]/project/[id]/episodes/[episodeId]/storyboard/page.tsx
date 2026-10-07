@@ -49,6 +49,7 @@ import { AgentPicker } from "@/components/agent-picker";
 import Link from "next/link";
 import { LioncorePanel } from "@/components/lioncore-panel";
 import { VirtualSetsPanel } from "@/components/editor/virtual-sets-panel";
+import { SceneEventMemory } from "@/components/editor/scene-event-memory";
 
 export default function EpisodeStoryboardPage() {
   const t = useTranslations();
@@ -1150,6 +1151,10 @@ export default function EpisodeStoryboardPage() {
                       {group.shots.length} {group.shots.length === 1 ? "shot" : "shots"}
                     </span>
                   </div>
+                  {(() => {
+                    const scene = project.scenes?.find((item) => item.id === group.sceneId);
+                    return scene ? <SceneEventMemory projectId={project.id} scene={scene} onUpdated={() => fetchProject(project.id, useProjectStore.getState().currentEpisodeId!)} /> : null;
+                  })()}
                   {/* Shots in this scene */}
                   {group.shots.map((shot) => renderShotCard(shot))}
                 </div>
