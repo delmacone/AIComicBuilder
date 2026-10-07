@@ -143,6 +143,8 @@ export const blackfistSequences = sqliteTable("blackfist_sequences", {
   shotIds: text("shot_ids").notNull().default("[]"),
   plan: text("plan").notNull().default("{}"),
   continuitySnapshot: text("continuity_snapshot").notNull().default("{}"),
+  audioPlan: text("audio_plan").notNull().default("{}"),
+  audioStatus: text("audio_status").notNull().default("draft"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
