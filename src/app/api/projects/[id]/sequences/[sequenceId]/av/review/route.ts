@@ -1,0 +1,6 @@
+import { NextResponse } from "next/server";
+import { and,eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { blackfistSequences } from "@/lib/db/schema";
+import { assertProjectOwnership } from "@/lib/assert-project-ownership";
+export async function POST(request:Request,{params}:{params:Promise<{id:string;sequenceId:string}>}){const {id,sequenceId}=await params;if(!(await assertProjectOwnership(request,id)))return NextResponse.json({error:"Not found"},{status:404});const [s]=await db.select().from(blackfistSequences).where(and(eq(blackfistSequences.id,sequenceId),eq(blackfistSequences.projectId,id)));if(!s)return NextResponse.json({error:"Sequence not found"},{status:404});const body=await request.json() as {approved?:boolean;notes?:string};if(!s.finalVideoUrl)return NextResponse.json({error:"Sequence AV master has not been created"},{status:409});const status=body.approved?"approved":"review_required";let qc:Record<string,unknown>={};try{qc=JSON.parse(s.avQc||"{}") as Record<string,unknown>}catch{}qc={...qc,humanApproved:Boolean(body.approved),notes:body.notes||"",reviewedAt:new Date().toISOString()};await db.update(blackfistSequences).set({avStatus:status,avQc:JSON.stringify(qc),updatedAt:new Date()}).where(eq(blackfistSequences.id,sequenceId));return NextResponse.json({avStatus:status,qc});}
