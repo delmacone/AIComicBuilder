@@ -155,9 +155,12 @@ export async function PATCH(
     worldSetting: string;
     targetDuration: number;
     bgmUrl: string;
+    visualStylePreset: "blackfist_comic_shader" | "cinematic_3d" | "ultra_realistic" | "graphic_novel" | "kids_animation";
+    visualStyleLockEnabled: number;
+    visualStyleLock: string;
   }>;
 
-  const { title, idea, script, outline, status, generationMode, useProjectPrompts, colorPalette, worldSetting, targetDuration, bgmUrl } = body;
+  const { title, idea, script, outline, status, generationMode, useProjectPrompts, colorPalette, worldSetting, targetDuration, bgmUrl, visualStylePreset, visualStyleLockEnabled, visualStyleLock } = body;
 
   const [updated] = await db
     .update(projects)
@@ -173,6 +176,9 @@ export async function PATCH(
       ...(worldSetting !== undefined && { worldSetting }),
       ...(targetDuration !== undefined && { targetDuration }),
       ...(bgmUrl !== undefined && { bgmUrl }),
+      ...(visualStylePreset !== undefined && { visualStylePreset, visualStyleLockVersion: project.visualStyleLockVersion + (visualStylePreset !== project.visualStylePreset ? 1 : 0) }),
+      ...(visualStyleLockEnabled !== undefined && { visualStyleLockEnabled }),
+      ...(visualStyleLock !== undefined && { visualStyleLock }),
       updatedAt: new Date(),
     })
     .where(eq(projects.id, id))
