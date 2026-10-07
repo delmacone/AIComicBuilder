@@ -1,6 +1,6 @@
 import path from "path";
 import { db } from "@/lib/db";
-import { shots, characters, storyboardVersions } from "@/lib/db/schema";
+import { shots, characters, storyboardVersions, projects } from "@/lib/db/schema";
 import { resolveVideoProvider, resolveAIProvider } from "@/lib/ai/provider-factory";
 import type { ModelConfigPayload } from "@/lib/ai/provider-factory";
 import { checkVideoQuality } from "./video-quality-check";
@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import type { Task } from "@/lib/task-queue";
 import { getActiveAsset, insertAssetVersion } from "@/lib/shot-asset-utils";
 import { buildCanonPromptBlock } from "@/lib/pipeline/blackfist-canon-context";
+import { buildVisualStylePrompt } from "@/lib/pipeline/blackfist-visual-style";
 
 async function getVersionedUploadDirFromPipeline(versionId: string | null | undefined): Promise<string> {
   if (!versionId) return process.env.UPLOAD_DIR || "./uploads";
@@ -99,6 +100,9 @@ export async function handleVideoGenerate(task: Task) {
   );
   const canonPromptBlock = buildCanonPromptBlock(videoRelevantCharacters);
   if (canonPromptBlock) prompt += canonPromptBlock;
+  const [project] = await db.select().from(projects).where(eq(projects.id, shot.projectId));
+  const stylePrompt = project ? buildVisualStylePrompt(project) : "";
+  if (stylePrompt) prompt += `\n\n${stylePrompt}`;
 
   const result = await videoProvider.generateVideo({
     firstFrame: firstFrameUrl,
