@@ -286,6 +286,23 @@ export async function handleFrameGenerate(task: Task) {
     }).where(eq(shots.id, payload.shotId));
     throw new Error("BlackFist continuity review required: missing approved canon reference");
   }
+  const invalidLockedCanon = relevantChars.filter((c) => {
+    if (c.canonLockEnabled !== 1) return false;
+    try {
+      const lock = JSON.parse(c.canonVisualLock || "{}") as CanonVisualLock;
+      return !lock.skinTone || !lock.hair || !lock.bodyBuild || !lock.costume || !lock.emblem;
+    } catch { return true; }
+  });
+  if (invalidLockedCanon.length > 0) {
+    const names = invalidLockedCanon.map((c) => c.name);
+    await db.update(shots).set({
+      continuityStatus: "review_required",
+      continuityScore: 0,
+      continuityIssues: JSON.stringify(names.map((name) => name + ": Canon Visual Lock is incomplete or invalid")),
+    }).where(eq(shots.id, payload.shotId));
+    throw new Error("BlackFist continuity review required: incomplete Canon Visual Lock");
+  }
+
   const lockedRelevantChars = relevantChars.filter(
     (c) => c.canonLockEnabled === 1 && !!c.referenceImage
   );
