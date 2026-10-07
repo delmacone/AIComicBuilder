@@ -135,6 +135,16 @@ export const virtualSets = sqliteTable("virtual_sets", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
 
+export const blackfistCharacterStates = sqliteTable("blackfist_character_states", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  episodeId: text("episode_id").references(() => episodes.id, { onDelete: "cascade" }),
+  characterId: text("character_id").notNull().references(() => characters.id, { onDelete: "cascade" }),
+  state: text("state").notNull().default("{}"),
+  version: integer("version").notNull().default(1),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+});
+
 export const blackfistSequences = sqliteTable("blackfist_sequences", {
   id: text("id").primaryKey(),
   projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
@@ -158,6 +168,7 @@ export const blackfistSequences = sqliteTable("blackfist_sequences", {
   continuityAnchorUrl: text("continuity_anchor_url"),
   inheritedState: text("inherited_state").notNull().default("{}"),
   inheritedStateVersion: integer("inherited_state_version").notNull().default(0),
+  inheritedCharacterStates: text("inherited_character_states").notNull().default("{}"),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
