@@ -218,6 +218,10 @@ interface Project {
   status: string;
   finalVideoUrl: string | null;
   generationMode: "keyframe" | "reference";
+  visualStylePreset?: "blackfist_comic_shader" | "cinematic_3d" | "ultra_realistic" | "graphic_novel" | "kids_animation";
+  visualStyleLockEnabled?: number;
+  visualStyleLockVersion?: number;
+  visualStyleLock?: string | null;
   characters: Character[];
   scenes: Scene[];
   shots: Shot[];
