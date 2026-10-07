@@ -52,6 +52,7 @@ import { VirtualSetsPanel } from "@/components/editor/virtual-sets-panel";
 import { VisualStyleLockPanel } from "@/components/editor/visual-style-lock-panel";
 import { SequencePlanner } from "@/components/editor/sequence-planner";
 import { SceneEventMemory } from "@/components/editor/scene-event-memory";
+import { EpisodeProductionDashboard } from "@/components/editor/episode-production-dashboard";
 
 export default function EpisodeStoryboardPage() {
   const t = useTranslations();
@@ -1180,6 +1181,7 @@ export default function EpisodeStoryboardPage() {
         })()
       )}
 
+              <EpisodeProductionDashboard projectId={project.id} />
               <SequencePlanner projectId={project.id} scenes={project.scenes} />
               <VisualStyleLockPanel project={project} onUpdated={() => fetchProject(project.id, useProjectStore.getState().currentEpisodeId!)} />
       <VirtualSetsPanel projectId={project.id} scenes={project.scenes ?? []} onAssigned={() => fetchProject(project.id, useProjectStore.getState().currentEpisodeId!)} />
