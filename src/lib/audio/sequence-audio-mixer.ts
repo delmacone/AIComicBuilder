@@ -10,8 +10,23 @@ function resolveUploadUrl(url:string){
  const prefix="/api/uploads/";if(!url.startsWith(prefix))throw new Error("Sequence audio asset is not a local upload");
  const relative=url.slice(prefix.length).split("/").filter(Boolean);
  const full=path.resolve(uploadDir,...relative),root=path.resolve(uploadDir);
- if(!full.startsWith(root))throw new Error("Invalid sequence audio path");
+ if(full===root||!full.startsWith(root+path.sep))throw new Error("Invalid sequence audio path");
  return full;
+}
+
+/** Smooth, merged dialogue windows; ramp down before speech and back up afterwards. */
+export function musicDuckingExpression(windows:Array<{start:number;end:number}>,fadeSeconds=0.35){
+ const valid=windows.filter(w=>Number.isFinite(w.start)&&Number.isFinite(w.end)&&w.end>w.start).sort((a,b)=>a.start-b.start);
+ const merged:Array<{start:number;end:number}>=[];
+ for(const w of valid){const last=merged[merged.length-1];if(last&&w.start<=last.end+2*fadeSeconds)last.end=Math.max(last.end,w.end);else merged.push({...w})}
+ let expr="1";
+ for(const w of merged){
+  const start=Math.max(0,w.start-fadeSeconds),down=Math.max(0,w.start-start),up=fadeSeconds;
+  const downExpr=down>0?`(1-0.7*(t-${start.toFixed(3)})/${down.toFixed(3)})`:"0.3";
+  const upExpr=`(0.3+0.7*(t-${w.end.toFixed(3)})/${up.toFixed(3)})`;
+  expr=`if(between(t\\,${start.toFixed(3)}\\,${w.start.toFixed(3)})\\,${downExpr}\\,if(between(t\\,${w.start.toFixed(3)}\\,${w.end.toFixed(3)})\\,0.3\\,if(between(t\\,${w.end.toFixed(3)}\\,${(w.end+up).toFixed(3)})\\,${upExpr}\\,${expr})))`;
+ }
+ return expr;
 }
 
 export async function mixSequenceAudio(inputs:SequenceMixInput[],durationSeconds:number,options?:{duckMusicUnderDialogue?:boolean}){
@@ -27,7 +42,7 @@ export async function mixSequenceAudio(inputs:SequenceMixInput[],durationSeconds
   const label=`a${i}`;
   let filter=`[${i}:a]adelay=${delay}|${delay},volume=${vol}`;
   if(duckEnabled&&x.kind==="music"){
-   const expression=dialogueWindows.reduce((acc,w)=>`if(between(t\\,${w.start.toFixed(3)}\\,${w.end.toFixed(3)})\\,0.3\\,${acc})`,"1");
+   const expression=musicDuckingExpression(dialogueWindows);
    filter+=`,volume='${expression}':eval=frame`;
   }
   filters.push(`${filter}[${label}]`);
