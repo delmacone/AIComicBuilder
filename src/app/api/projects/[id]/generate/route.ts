@@ -2800,7 +2800,7 @@ async function handleSingleVideoPrompt(
   // Reference mode: pass ALL scene reference frames (ordered) so multi-
   // scene shots (ground → sky etc.) get the full spatial context.
   const visionFrames: string[] = [];
-  let sceneMetaList: Array<{ sceneName?: string } | null> = [];
+  const sceneMetaList: Array<{ sceneName?: string } | null> = [];
   if (genMode === "reference") {
     const sceneAssets = shotView.referenceImages
       .filter((r) => r.fileUrl)
