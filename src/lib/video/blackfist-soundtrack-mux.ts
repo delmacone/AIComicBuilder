@@ -25,7 +25,7 @@ export async function muxReviewedEpisode(videoUrl:string,soundtrackUrl:string,pr
  try{
   await new Promise<void>((resolve,reject)=>ffmpeg().input(video).input(audio)
    .outputOptions(["-map","0:v:0","-map","1:a:0","-c:v","copy","-c:a","aac","-b:a","192k","-shortest","-movflags","+faststart","-y"])
-   .output(output).on("end",resolve).on("error",reject).run());
+   .output(output).on("end",()=>resolve()).on("error",(error:Error)=>reject(error)).run());
  }catch(error){try{fs.unlinkSync(output)}catch{}throw error}
  const relative=path.relative(uploadRoot,output).split(path.sep).join("/");
  return {fileUrl:`/api/uploads/${relative}`,status:"review_required" as const};
