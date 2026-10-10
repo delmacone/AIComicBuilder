@@ -44,6 +44,7 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string;e
   if(typeof cue.fileUrl!=="string"||!cue.fileUrl.startsWith("/api/uploads/")){issues.push("Cue must reference a local uploaded audio asset");continue}
   const offset=cue.offsetSeconds??0,volume=cue.volume??(cue.kind==="music"?.18:cue.kind==="ambience"?.25:.75);
   if(!Number.isFinite(offset)||offset<0||!Number.isFinite(volume)||volume<0||volume>1){issues.push("Invalid cue timing or volume");continue}
+  if(sceneStart+offset>=cursor){issues.push("Sound cue starts after episode ends");continue}
   try{await probeDialogueSeconds(cue.fileUrl);inputs.push({fileUrl:cue.fileUrl,kind:cue.kind,startSeconds:sceneStart+offset,volume})}catch{issues.push("Sound asset unavailable: "+cue.fileUrl)}
  }
  if(!inputs.length)issues.push("No mixable audio assets");
