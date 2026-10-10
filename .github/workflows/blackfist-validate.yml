@@ -37,6 +37,11 @@ jobs:
         with:
           name: blackfist-lint
           path: lint.log
+      - name: FFmpeg review MP4 smoke test
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+          bash scripts/blackfist-review-mux-smoke.sh
       - name: Production build
         if: always()
         run: pnpm build
