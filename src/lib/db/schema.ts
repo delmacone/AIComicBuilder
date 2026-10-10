@@ -532,3 +532,17 @@ export const agentBindings = sqliteTable("agent_bindings", {
   }).notNull(),
   agentId: text("agent_id").references(() => agents.id, { onDelete: "set null" }),
 });
+
+/** Unpublished editorial MP4 masters; each revision retains its source media. */
+export const blackfistEpisodeReviewMasters = sqliteTable("blackfist_episode_review_masters", {
+ id: text("id").primaryKey(),
+ projectId: text("project_id").notNull().references(() => projects.id, {onDelete:"cascade"}),
+ episodeId: text("episode_id").notNull().references(() => episodes.id, {onDelete:"cascade"}),
+ videoSourceUrl: text("video_source_url").notNull(),
+ soundtrackSourceUrl: text("soundtrack_source_url").notNull(),
+ fileUrl: text("file_url").notNull(),
+ videoDurationSeconds: real("video_duration_seconds").notNull(),
+ soundtrackDurationSeconds: real("soundtrack_duration_seconds").notNull(),
+ status: text("status").notNull().default("review_required"),
+ createdAt: integer("created_at",{mode:"timestamp"}).notNull().$defaultFn(()=>new Date()),
+});
