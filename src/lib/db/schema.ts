@@ -31,6 +31,18 @@ export const projects = sqliteTable("projects", {
     .$defaultFn(() => new Date()),
 });
 
+export const blackfistScreenplayDrafts = sqliteTable("blackfist_screenplay_drafts", {
+ id: text("id").primaryKey(),
+ projectId: text("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+ episodeId: text("episode_id").notNull().references(() => episodes.id, { onDelete: "cascade" }),
+ version: integer("version").notNull(),
+ status: text("status").notNull().default("review_required"),
+ storyIdea: text("story_idea").notNull(),
+ screenplayJson: text("screenplay_json").notNull(),
+ castSnapshotJson: text("cast_snapshot_json").notNull(),
+ createdAt: integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
+ approvedAt: integer("approved_at", { mode: "timestamp" }),
+});
 export const blackfistTvSeasons = sqliteTable("blackfist_tv_seasons", { id: text("id").primaryKey(), projectId: text("project_id").notNull().references(() => projects.id, {onDelete:"cascade"}), seasonNumber: integer("season_number").notNull(), title: text("title").notNull(), synopsis: text("synopsis").notNull().default(""), createdAt: integer("created_at",{mode:"timestamp"}).notNull().$defaultFn(()=>new Date()) });
 
 export const episodes = sqliteTable("episodes", {
