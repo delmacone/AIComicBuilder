@@ -50,6 +50,7 @@ import Link from "next/link";
 import { LioncorePanel } from "@/components/lioncore-panel";
 import { VirtualSetsPanel } from "@/components/editor/virtual-sets-panel";
 import { VisualStyleLockPanel } from "@/components/editor/visual-style-lock-panel";
+import { BlackfistCastLibrary } from "@/components/editor/blackfist-cast-library";
 import { BlackfistShowrunner } from "@/components/editor/blackfist-showrunner";
 import { SequencePlanner } from "@/components/editor/sequence-planner";
 import { SceneEventMemory } from "@/components/editor/scene-event-memory";
@@ -1183,6 +1184,7 @@ export default function EpisodeStoryboardPage() {
       )}
 
               {currentEpisodeId && <BlackfistShowrunner projectId={project.id} episodeId={currentEpisodeId} />}
+              <BlackfistCastLibrary projectId={project.id} />
               <EpisodeProductionDashboard projectId={project.id} />
               <SequencePlanner projectId={project.id} scenes={project.scenes} />
               <VisualStyleLockPanel project={project} onUpdated={() => fetchProject(project.id, useProjectStore.getState().currentEpisodeId!)} />
