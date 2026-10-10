@@ -61,6 +61,7 @@ export default function EpisodeStoryboardPage() {
   const locale = useLocale();
   const { project, fetchProject } = useProjectStore();
   const getModelConfig = useModelStore((s) => s.getModelConfig);
+  const [generatingKeyframeAssets, setGeneratingKeyframeAssets] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generatingFrames, setGeneratingFrames] = useState(false);
   const [generatingVideos, setGeneratingVideos] = useState(false);
@@ -141,6 +142,7 @@ export default function EpisodeStoryboardPage() {
     };
   }, [project?.shots]);
 
+
   if (!project) return null;
 
   const totalShots = project.shots.length;
@@ -158,7 +160,7 @@ export default function EpisodeStoryboardPage() {
   const hasReferenceImages = charactersWithRefs.length > 0;
 
   // Check if all reference images are generated (for reference mode blocking)
-  const allRefImagesGenerated = useMemo(() => {
+  const allRefImagesGenerated = (() => {
     if (generationMode !== "reference") return true;
     for (const shot of project.shots) {
       const refOnly = getReferenceAssets(shot);
@@ -168,32 +170,32 @@ export default function EpisodeStoryboardPage() {
       }
     }
     return true;
-  }, [project.shots, generationMode]);
+  })();
 
-  const shotsWithRefPrompts = useMemo(() => {
+  const shotsWithRefPrompts = (() => {
     if (!project) return 0;
     return project.shots.filter((s) => {
       const refOnly = getReferenceAssets(s);
       return refOnly.length > 0 && refOnly.some((r) => r.prompt);
     }).length;
-  }, [project?.shots]);
+  })();
 
-  const shotsWithKeyframePrompts = useMemo(() => {
+  const shotsWithKeyframePrompts = (() => {
     if (!project) return 0;
     return project.shots.filter((s) => {
       const ff = getFirstFramePrompt(s);
       const lf = getLastFramePrompt(s);
       return !!ff && !!lf;
     }).length;
-  }, [project?.shots]);
+  })();
 
-  const shotsWithAllRefImages = useMemo(() => {
+  const shotsWithAllRefImages = (() => {
     if (!project) return 0;
     return project.shots.filter((s) => {
       const refOnly = getReferenceAssets(s);
       return refOnly.length > 0 && refOnly.every((r) => r.status === "completed" && r.fileUrl);
     }).length;
-  }, [project?.shots]);
+  })();
 
   const anyGenerating = generating || generatingFrames || generatingVideos || generatingSceneFrames || generatingRefImages || generatingVideoPrompts || generatingRefPrompts;
 
@@ -393,7 +395,6 @@ export default function EpisodeStoryboardPage() {
 
   // Synchronous batch generator for keyframe (first/last frame) image prompts.
   // Mirrors handleGenerateRefPrompts — single LLM call, returns immediately.
-  const [generatingKeyframeAssets, setGeneratingKeyframeAssets] = useState(false);
 
   async function handleGenerateKeyframeAssets() {
     if (!project) return;
@@ -443,8 +444,8 @@ export default function EpisodeStoryboardPage() {
       if (!resp.ok) throw new Error("Failed");
       const data = await resp.json();
 
-      const totalGenerated = data.results?.reduce((sum: number, r: any) => sum + (r.generated || 0), 0) || 0;
-      const totalFailed = data.results?.reduce((sum: number, r: any) => sum + (r.failed || 0), 0) || 0;
+      const totalGenerated = data.results?.reduce((sum: number, r: {generated?:number;failed?:number}) => sum + (r.generated || 0), 0) || 0;
+      const totalFailed = data.results?.reduce((sum: number, r: {generated?:number;failed?:number}) => sum + (r.failed || 0), 0) || 0;
 
       if (totalFailed > 0) {
         toast.error(`${totalFailed} reference images failed`);
