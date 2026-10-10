@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { projects, characters, scenes, shots } from "@/lib/db/schema";
+import { projects, characters, scenes, shots, blackfistCharacterStates } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { enqueueTask } from "@/lib/task-queue";
 import { assertProjectOwnership } from "@/lib/assert-project-ownership";
@@ -18,7 +18,7 @@ export async function POST(
     return NextResponse.json({ error: "Lioncore is not connected. Add OPENAI_API_KEY on the server." }, { status: 503 });
   }
 
-  const body = await request.json() as { message?: string; action?: "audit_continuity" | "scene_review" | "retry_shot" | "detect_scene_events" | "apply_scene_events"; sceneId?: string; shotId?: string; confirm?: boolean; modelConfig?: unknown };
+  const body = await request.json() as { message?: string; action?: "audit_continuity" | "scene_review" | "retry_shot" | "detect_scene_events" | "apply_scene_events"; sceneId?: string; shotId?: string; confirm?: boolean; events?: Array<{ type?: string; target?: string; change?: string; shotId?: string; characterId?: string; characterName?: string; state?: Record<string, unknown> }>; modelConfig?: unknown };
   const message = body.message?.trim() || "";
   if (!message && !body.action) return NextResponse.json({ error: "Message or action required" }, { status: 400 });
 
@@ -94,13 +94,13 @@ export async function POST(
     const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const response = await client.responses.create({
       model: process.env.LIONCORE_OPENAI_MODEL || "gpt-6-luna",
-      instructions: "You are Lioncore, continuity supervisor. Identify only persistent production changes later shots must remember: environment changes, moved or dropped props, character condition, wardrobe condition, weather, lighting, position, or persistent visual effects. Do not invent events. Return JSON only with an events array. Each event has type, target, change, and shotId.",
-      input: JSON.stringify({ scene: { id: scene.id, title: scene.title, description: scene.description, continuityState: scene.continuityState }, shots: sceneShots.map((shot) => ({ id: shot.id, sequence: shot.sequence, prompt: shot.prompt, motionScript: shot.motionScript, videoScript: shot.videoScript })) }),
+      instructions: "You are Lioncore, continuity supervisor. Identify only persistent production changes later shots must remember. Environment events use type, target, change, shotId. Character events use type character_state plus characterId when unambiguous, characterName, and a structured state object with relevant keys such as injury, costumeCondition, powerState, carriedObjects, position. Do not invent events. Return JSON only with an events array.",
+      input: JSON.stringify({ cast: cast.map(c=>({id:c.id,name:c.name})), scene: { id: scene.id, title: scene.title, description: scene.description, continuityState: scene.continuityState }, shots: sceneShots.map((shot) => ({ id: shot.id, sequence: shot.sequence, prompt: shot.prompt, motionScript: shot.motionScript, videoScript: shot.videoScript })) }),
     });
     const match = response.output_text.match(/\{[\s\S]*\}/);
     if (!match) return NextResponse.json({ error: "Lioncore returned no valid event proposal" }, { status: 502 });
-    const parsed = JSON.parse(match[0]) as { events?: Array<{ type?: string; target?: string; change?: string; shotId?: string }> };
-    const events = (parsed.events || []).filter((event) => event.target && event.change);
+    const parsed = JSON.parse(match[0]) as { events?: Array<{ type?: string; target?: string; change?: string; shotId?: string; characterId?: string; characterName?: string; state?: Record<string, unknown> }> };
+    const detectedEvents = (parsed.events || []).filter((event) => event.target && event.change);\n    const events = body.action === "apply_scene_events" && body.events?.length ? body.events.filter((event) => event.target && event.change) : detectedEvents;
     if (body.action === "detect_scene_events") return NextResponse.json({ action: body.action, events, reply: events.length ? "Lioncore found " + events.length + " persistent scene event(s). Review before applying." : "Lioncore found no persistent scene events to add." });
     if (!body.confirm) return NextResponse.json({ error: "Explicit confirmation is required before Lioncore changes Scene Memory.", events }, { status: 409 });
     let state: Record<string, unknown> = {}; try { state = JSON.parse(scene.continuityState || "{}"); } catch {}
