@@ -37,6 +37,8 @@ jobs:
         with:
           name: blackfist-lint
           path: lint.log
+      - name: BlackFist database migration smoke test
+        run: bash scripts/blackfist-migrations-smoke.sh
       - name: FFmpeg review MP4 smoke test
         run: |
           sudo apt-get update -qq
