@@ -5,9 +5,15 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
-  {\n    rules: {\n      "@typescript-eslint/no-unused-vars": "warn",\n      "react-hooks/set-state-in-effect": "warn",
+  {
+    rules: {
+      "@typescript-eslint/no-unused-vars": "warn",
+      "react-hooks/set-state-in-effect": "warn",
       "react-hooks/purity": "warn",
-      "react-hooks/refs": "warn",\n    },\n  },\n  // Override default ignores of eslint-config-next.
+      "react-hooks/refs": "warn",
+    },
+  },
+  // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
     ".next/**",
