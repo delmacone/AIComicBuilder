@@ -2,8 +2,7 @@ import { NextResponse } from "next/server";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { assertProjectOwnership } from "@/lib/assert-project-ownership";
-import { blackfistScreenplayDrafts, shots, dialogues, characters, episodeCharacters, blackfistSequenceAudioAssets } from "@/lib/db/schema";
-import { id as genId } from "@/lib/id";
+import { blackfistScreenplayDrafts, shots, dialogues, characters, episodeCharacters } from "@/lib/db/schema";
 import { generateElevenLabsSpeech } from "@/lib/audio/elevenlabs";
 import { saveSequenceAudio } from "@/lib/audio/sequence-audio-storage";
 
@@ -30,16 +29,12 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string;e
  const results:Array<{dialogueId:string;status:string;audioUrl?:string}>=[];
  for(const line of pending){
   const actor=cast.get(line.characterId)!;
-  const assetId=genId();
-  await db.insert(blackfistSequenceAudioAssets).values({id:assetId,projectId:id,shotId:line.shotId,kind:"dialogue",prompt:line.text,provider:"elevenlabs",model:"eleven_multilingual_v2",status:"generating",metadata:JSON.stringify({episodeId,dialogueId:line.id,characterId:actor.id,voiceId:actor.voiceId,voiceLockVersion:actor.voiceVersion})});
   try{
    const audio=await generateElevenLabsSpeech({voiceId:actor.voiceId!,text:line.text});
    const saved=saveSequenceAudio(audio.bytes,"mp3");
-   await db.update(blackfistSequenceAudioAssets).set({status:"completed",fileUrl:saved.url,updatedAt:new Date()}).where(eq(blackfistSequenceAudioAssets.id,assetId));
    await db.update(dialogues).set({audioUrl:saved.url}).where(and(eq(dialogues.id,line.id),eq(dialogues.shotId,line.shotId)));
    results.push({dialogueId:line.id,status:"completed",audioUrl:saved.url});
   }catch{
-   await db.update(blackfistSequenceAudioAssets).set({status:"failed",updatedAt:new Date()}).where(eq(blackfistSequenceAudioAssets.id,assetId));
    results.push({dialogueId:line.id,status:"failed"});
   }
  }
