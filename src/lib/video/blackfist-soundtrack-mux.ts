@@ -38,6 +38,9 @@ export async function muxReviewedEpisode(videoUrl:string,soundtrackUrl:string,pr
   await new Promise<void>((resolve,reject)=>ffmpeg().input(video).input(audio)
    .outputOptions(["-map","0:v:0","-map","1:a:0","-c:v","copy","-c:a","aac","-b:a","192k","-shortest","-movflags","+faststart","-y"])
    .output(output).on("end",()=>resolve()).on("error",(error:Error)=>reject(error)).run());
+  const finalInfo=await inspectMedia(output);
+  if(!finalInfo.hasVideo||!finalInfo.hasAudio||!Number.isFinite(finalInfo.duration))throw new Error("Review master is missing a valid video or audio stream");
+  if(Math.abs(finalInfo.duration-videoInfo.duration)>0.5)throw new Error(`Review master duration mismatch: ${finalInfo.duration.toFixed(2)}s versus source video ${videoInfo.duration.toFixed(2)}s`);
  }catch(error){try{fs.unlinkSync(output)}catch{}throw error}
  const relative=path.relative(uploadRoot,output).split(path.sep).join("/");
  return {fileUrl:`/api/uploads/${relative}`,status:"review_required" as const,videoDurationSeconds:videoInfo.duration,soundtrackDurationSeconds:audioInfo.duration};
