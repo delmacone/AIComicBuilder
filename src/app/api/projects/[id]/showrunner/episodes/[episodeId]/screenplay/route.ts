@@ -1,8 +1,10 @@
 import OpenAI from "openai";
+import { randomUUID } from "node:crypto";
+import { desc } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { characters, episodeCharacters, episodes } from "@/lib/db/schema";
+import { blackfistScreenplayDrafts, characters, episodeCharacters, episodes } from "@/lib/db/schema";
 import { assertProjectOwnership } from "@/lib/assert-project-ownership";
 
 type SceneDraft = { heading: string; summary: string; location: string; dialogue: Array<{ characterId: string; line: string }>; shots: Array<{ description: string; durationSeconds: number }> };
@@ -46,6 +48,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const parsed = JSON.parse(raw) as { scenes?: unknown };
   const scenes = validateDraft(parsed.scenes, new Set(cast.map(c => c.id)));
   if (!scenes) return NextResponse.json({ error: "AI returned an invalid screenplay; no changes saved" }, { status: 502 });
-  return NextResponse.json({ status: "draft_review_required", episodeId, cast, scenes, estimatedShotSeconds: scenes.flatMap(s => s.shots).reduce((sum, shot) => sum + shot.durationSeconds, 0), persisted: false });
+  const previous = await db.select({ version: blackfistScreenplayDrafts.version }).from(blackfistScreenplayDrafts).where(eq(blackfistScreenplayDrafts.episodeId, episodeId)).orderBy(desc(blackfistScreenplayDrafts.version)).limit(1);
+  const [draft] = await db.insert(blackfistScreenplayDrafts).values({ id: randomUUID(), projectId: id, episodeId, version: (previous[0]?.version || 0) + 1, storyIdea: idea, screenplayJson: JSON.stringify(scenes), castSnapshotJson: JSON.stringify(cast) }).returning();
+  return NextResponse.json({ draftId: draft.id, version: draft.version, status: "draft_review_required", episodeId, cast, scenes, estimatedShotSeconds: scenes.flatMap(s => s.shots).reduce((sum, shot) => sum + shot.durationSeconds, 0), persisted: true });
  } catch { return NextResponse.json({ error: "Screenplay generation failed; no changes saved" }, { status: 502 }); }
 }
