@@ -100,7 +100,8 @@ export async function POST(
     const match = response.output_text.match(/\{[\s\S]*\}/);
     if (!match) return NextResponse.json({ error: "Lioncore returned no valid event proposal" }, { status: 502 });
     const parsed = JSON.parse(match[0]) as { events?: Array<{ type?: string; target?: string; change?: string; shotId?: string; characterId?: string; characterName?: string; state?: Record<string, unknown> }> };
-    const detectedEvents = (parsed.events || []).filter((event) => event.target && event.change);\n    const events = body.action === "apply_scene_events" && body.events?.length ? body.events.filter((event) => event.target && event.change) : detectedEvents;
+    const detectedEvents = (parsed.events || []).filter((event) => event.target && event.change);
+    const events = body.action === "apply_scene_events" && body.events?.length ? body.events.filter((event) => event.target && event.change) : detectedEvents;
     if (body.action === "detect_scene_events") return NextResponse.json({ action: body.action, events, reply: events.length ? "Lioncore found " + events.length + " persistent scene event(s). Review before applying." : "Lioncore found no persistent scene events to add." });
     if (!body.confirm) return NextResponse.json({ error: "Explicit confirmation is required before Lioncore changes Scene Memory.", events }, { status: 409 });
     let state: Record<string, unknown> = {}; try { state = JSON.parse(scene.continuityState || "{}"); } catch {}
