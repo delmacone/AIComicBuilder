@@ -49,6 +49,6 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string;e
  }
  if(!inputs.length)issues.push("No mixable audio assets");
  if(issues.length)return NextResponse.json({error:"Soundtrack review required",issues},{status:409});
- try{const mix=await mixSequenceAudio(inputs,cursor,{duckMusicUnderDialogue:true});return NextResponse.json({episodeId,status:"review_required",mixUrl:mix.url,durationSeconds:cursor,dialogueInputs:inputs.filter(x=>x.kind==="dialogue").length,soundInputs:body.cues.length,musicDucking:"timeline-based 30% music volume during recorded dialogue windows; not sidechain compression",message:"Review soundtrack created; final editorial approval required"})}
+ try{const mix=await mixSequenceAudio(inputs,cursor,{duckMusicUnderDialogue:true});return NextResponse.json({episodeId,status:"review_required",mixUrl:mix.url,durationSeconds:cursor,dialogueInputs:inputs.filter(x=>x.kind==="dialogue").length,soundInputs:body.cues.length,musicDucking:"350ms ramp down/up around merged dialogue windows; music reduced to 30% during speech",message:"Review soundtrack created; final editorial approval required"})}
  catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Soundtrack mix failed"},{status:500})}
 }
