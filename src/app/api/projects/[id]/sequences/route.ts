@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { db } from "@/lib/db";
-import { blackfistSequences, scenes, shots, projects } from "@/lib/db/schema";
+import { blackfistSequences, scenes, shots, projects, blackfistCharacterStates, characters } from "@/lib/db/schema";
 import { and, asc, eq } from "drizzle-orm";
 import { assertProjectOwnership } from "@/lib/assert-project-ownership";
 
@@ -20,7 +20,7 @@ export async function POST(request: Request,{params}:{params:Promise<{id:string}
  const requested=body.shotIds?.length ? sceneShots.filter(s=>body.shotIds!.includes(s.id)) : sceneShots.slice(0,5);
  if(requested.length<3 || requested.length>5) return NextResponse.json({error:"A BlackFist sequence requires 3 to 5 shots"},{status:400});
  const [project]=await db.select().from(projects).where(eq(projects.id,id));
- const snapshot={sceneState:scene.continuityState,sceneStateVersion:scene.continuityStateVersion,visualStylePreset:project?.visualStylePreset,visualStyleLockVersion:project?.visualStyleLockVersion};
+ const stateRows=await db.select().from(blackfistCharacterStates).where(eq(blackfistCharacterStates.projectId,id));const charStates=Object.fromEntries(stateRows.filter(x=>x.episodeId===scene.episodeId).map(x=>[x.characterId,{version:x.version}]));const canonRows=await db.select().from(characters).where(eq(characters.projectId,id));const canonVersions=Object.fromEntries(canonRows.filter(x=>x.canonLockEnabled===1).map(x=>[x.id,x.canonLockVersion]));const snapshot={characterStateVersions:charStates,canonVersions,sceneState:scene.continuityState,sceneStateVersion:scene.continuityStateVersion,visualStylePreset:project?.visualStylePreset,visualStyleLockVersion:project?.visualStyleLockVersion};
  const plan={shots:requested.map(s=>({id:s.id,sequence:s.sequence,prompt:s.prompt,cameraDirection:s.cameraDirection,duration:s.duration,continuityStatus:s.continuityStatus})),direction:body.direction||[]};
  const [created]=await db.insert(blackfistSequences).values({id:randomUUID(),projectId:id,episodeId:scene.episodeId,sceneId:scene.id,name:body.name?.trim()||`${scene.title||"Scene"} Multi-Shot`,shotIds:JSON.stringify(requested.map(s=>s.id)),plan:JSON.stringify(plan),continuitySnapshot:JSON.stringify(snapshot)}).returning();
  return NextResponse.json(created,{status:201});
