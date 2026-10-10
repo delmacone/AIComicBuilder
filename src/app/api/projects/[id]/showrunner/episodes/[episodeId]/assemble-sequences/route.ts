@@ -5,6 +5,9 @@ import { assertProjectOwnership } from "@/lib/assert-project-ownership";
 import { blackfistSequences, episodes, scenes } from "@/lib/db/schema";
 import { assembleApprovedSequences } from "@/lib/video/blackfist-episode-assemble";
 
+function hasHumanApproval(raw:string):boolean {
+ try { const qc=JSON.parse(raw) as {humanApproved?:unknown};return qc.humanApproved===true; } catch { return false; }
+}
 /** Editorial preview only: uses stored scene order and approved sequence masters. Does not publish. */
 export async function POST(request: Request, { params }: { params: Promise<{id:string;episodeId:string}> }) {
  const {id,episodeId}=await params;
@@ -18,8 +21,8 @@ export async function POST(request: Request, { params }: { params: Promise<{id:s
  const sequences=await db.select().from(blackfistSequences).where(and(eq(blackfistSequences.projectId,id),eq(blackfistSequences.episodeId,episodeId)));
  const urls:string[]=[];
  for (const scene of sceneRows) {
-  const approved=sequences.filter(s=>s.sceneId===scene.id&&s.avStatus==="approved"&&s.finalVideoUrl);
-  if (approved.length!==1) return NextResponse.json({error:`Scene "${scene.title||scene.id}" needs exactly one approved final video sequence; found ${approved.length}`},{status:409});
+  const approved=sequences.filter(s=>s.sceneId===scene.id&&s.avStatus==="approved"&&s.finalVideoUrl&&hasHumanApproval(s.avQc));
+  if (approved.length!==1) return NextResponse.json({error:`Scene "${scene.title||scene.id}" needs exactly one human-approved final AV sequence; found ${approved.length}`},{status:409});
   urls.push(approved[0].finalVideoUrl!);
  }
  if (sequences.some(s=>!s.sceneId||!sceneRows.some(scene=>scene.id===s.sceneId))) return NextResponse.json({error:"Episode has unassigned sequence(s); review before assembly"},{status:409});
