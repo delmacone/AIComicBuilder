@@ -32,7 +32,7 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string;e
     if(!cast.get(line.characterId)?.voiceLocked||!cast.get(line.characterId)?.voiceId||!line.audioUrl){issues.push("Dialogue not approved or recorded: "+line.id);continue}
     const start=Number(line.startRatio??"0"),end=Number(line.endRatio??"1");
     if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end>1||start>=end){issues.push("Invalid dialogue window: "+line.id);continue}
-    try{const seconds=await probeDialogueSeconds(line.audioUrl);if(seconds>(end-start)*duration+0.05)issues.push("Speech exceeds window: "+line.id);else inputs.push({fileUrl:line.audioUrl,kind:"dialogue",startSeconds:cursor+start*duration,volume:1})}catch{issues.push("Recording missing or invalid: "+line.id)}
+    try{const seconds=await probeDialogueSeconds(line.audioUrl);if(seconds>(end-start)*duration+0.05)issues.push("Speech exceeds window: "+line.id);else inputs.push({fileUrl:line.audioUrl,kind:"dialogue",startSeconds:cursor+start*duration,endSeconds:cursor+start*duration+seconds,volume:1})}catch{issues.push("Recording missing or invalid: "+line.id)}
    }
    cursor+=duration;
   }
@@ -49,6 +49,6 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string;e
  }
  if(!inputs.length)issues.push("No mixable audio assets");
  if(issues.length)return NextResponse.json({error:"Soundtrack review required",issues},{status:409});
- try{const mix=await mixSequenceAudio(inputs,cursor);return NextResponse.json({episodeId,status:"review_required",mixUrl:mix.url,durationSeconds:cursor,dialogueInputs:inputs.filter(x=>x.kind==="dialogue").length,soundInputs:body.cues.length,musicDucking:"static low-level music; dynamic sidechain ducking not implemented",message:"Review soundtrack created; final editorial approval required"})}
+ try{const mix=await mixSequenceAudio(inputs,cursor,{duckMusicUnderDialogue:true});return NextResponse.json({episodeId,status:"review_required",mixUrl:mix.url,durationSeconds:cursor,dialogueInputs:inputs.filter(x=>x.kind==="dialogue").length,soundInputs:body.cues.length,musicDucking:"timeline-based 30% music volume during recorded dialogue windows; not sidechain compression",message:"Review soundtrack created; final editorial approval required"})}
  catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Soundtrack mix failed"},{status:500})}
 }
