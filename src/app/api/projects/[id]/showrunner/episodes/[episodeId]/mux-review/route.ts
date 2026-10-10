@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import fs from "node:fs";
+import path from "node:path";
 import { and,eq,desc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { episodes,blackfistEpisodeReviewMasters } from "@/lib/db/schema";
@@ -26,7 +28,16 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string;e
  if(typeof body.videoUrl!=="string"||typeof body.soundtrackUrl!=="string")return NextResponse.json({error:"Video and soundtrack URLs required"},{status:400});
  try{
   const result=await muxReviewedEpisode(body.videoUrl,body.soundtrackUrl,id,episodeId);
-  await db.insert(blackfistEpisodeReviewMasters).values({id:genId(),projectId:id,episodeId,videoSourceUrl:body.videoUrl,soundtrackSourceUrl:body.soundtrackUrl,fileUrl:result.fileUrl,videoDurationSeconds:result.videoDurationSeconds,soundtrackDurationSeconds:result.soundtrackDurationSeconds,status:"review_required"});
+  try { await db.insert(blackfistEpisodeReviewMasters).values({id:genId(),projectId:id,episodeId,videoSourceUrl:body.videoUrl,soundtrackSourceUrl:body.soundtrackUrl,fileUrl:result.fileUrl,videoDurationSeconds:result.videoDurationSeconds,soundtrackDurationSeconds:result.soundtrackDurationSeconds,status:"review_required"}); } catch(error) {
+   const prefix="/api/uploads/";
+   if(result.fileUrl.startsWith(prefix)){
+    const relative=result.fileUrl.slice(prefix.length);
+    const root=path.resolve(process.env.UPLOAD_DIR||"./uploads");
+    const output=path.resolve(root,relative);
+    if(output.startsWith(root+path.sep))try{fs.unlinkSync(output)}catch{}
+   }
+   throw error;
+  }
   return NextResponse.json({episodeId,...result,message:"Video and soundtrack review master created. Final publication requires separate approval."});
  }catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Media assembly failed"},{status:500})}
 }
