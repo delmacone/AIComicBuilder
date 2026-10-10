@@ -1,3 +1,4 @@
+import { checkShowrunnerVideoGate } from "@/lib/blackfist-showrunner-video-gate";
 import { NextResponse } from "next/server";
 import { streamText, generateText } from "ai";
 import { createLanguageModel, extractJSON } from "@/lib/ai/ai-sdk";
@@ -1381,6 +1382,8 @@ async function handleSingleShotRewrite(
   if (!shot) {
     return NextResponse.json({ error: "Shot not found" }, { status: 404 });
   }
+  const gateIssues = await checkShowrunnerVideoGate(projectId, [shot]);
+  if (gateIssues.length) return NextResponse.json({ error: "Showrunner video generation blocked pending approval", issues: gateIssues }, { status: 409 });
   const shotView = await loadShotLegacyView(shot.id);
 
   const shotEpisodeId = episodeId || shot.episodeId;
@@ -1508,6 +1511,8 @@ async function handleBatchFrameGenerate(
   }
   const allShotsLegacy = await loadShotLegacyViewsBatch(allShots.map((s) => s.id));
 
+  const gateIssues = await checkShowrunnerVideoGate(projectId, allShots);
+  if (gateIssues.length) return NextResponse.json({ error: "Showrunner batch video generation blocked pending approval", issues: gateIssues }, { status: 409 });
   const versionedUploadDir = batchVersionId
     ? await getVersionedUploadDir(batchVersionId)
     : process.env.UPLOAD_DIR || "./uploads";
