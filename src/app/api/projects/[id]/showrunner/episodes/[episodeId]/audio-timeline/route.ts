@@ -1,3 +1,4 @@
+import { probeDialogueSeconds } from "@/lib/audio/dialogue-duration";
 import { NextResponse } from "next/server";
 import { and,asc,eq } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -19,15 +20,20 @@ export async function GET(request:Request,{params}:{params:Promise<{id:string;ep
   const sceneStart=cursor;const sceneShots=shotRows.filter(s=>s.sceneId===scene.id).sort((a,b)=>a.sequence-b.sequence);
   for(const shot of sceneShots){
    const duration=shot.duration||10;const lines=await db.select().from(dialogues).where(eq(dialogues.shotId,shot.id)).orderBy(asc(dialogues.sequence));
-   const cues=lines.map(line=>{
+   const cues=await Promise.all(lines.map(async line=>{
     const actor=cast.get(line.characterId);
     const startRatio=Number(line.startRatio??"0");const endRatio=Number(line.endRatio??"1");
     const valid=Number.isFinite(startRatio)&&Number.isFinite(endRatio)&&startRatio>=0&&endRatio<=1&&startRatio<endRatio;
     if(!valid)issues.push("Invalid dialogue timing for "+line.id);
     if(!actor?.voiceLocked||!actor.voiceId)issues.push("Voice not locked for "+line.id);
     if(!line.audioUrl)issues.push("Missing rendered dialogue "+line.id);
-    return {dialogueId:line.id,characterId:line.characterId,characterName:actor?.name||"Unassigned actor",text:line.text,audioUrl:line.audioUrl,startSeconds:cursor+(valid?startRatio:0)*duration,endSeconds:cursor+(valid?endRatio:1)*duration,timingMode:"planned_window_not_measured_audio",issues:valid?[]:["Invalid timing ratio"]};
-   });
+    let measuredSeconds:number|null=null;let audioIssue:string|null=null;
+    if(line.audioUrl){try{measuredSeconds=await probeDialogueSeconds(line.audioUrl)}catch{audioIssue="Audio file duration unavailable";issues.push(audioIssue+": "+line.id)}}
+    const startSeconds=cursor+(valid?startRatio:0)*duration;
+    const windowEnd=cursor+(valid?endRatio:1)*duration;
+    if(measuredSeconds!==null&&startSeconds+measuredSeconds>windowEnd+0.05){audioIssue="Recorded speech exceeds allocated dialogue window";issues.push(audioIssue+": "+line.id)}
+    return {dialogueId:line.id,characterId:line.characterId,characterName:actor?.name||"Unassigned actor",text:line.text,audioUrl:line.audioUrl,startSeconds,endSeconds:windowEnd,measuredSpeechSeconds:measuredSeconds,actualSpeechEndSeconds:measuredSeconds===null?null:startSeconds+measuredSeconds,timingMode:measuredSeconds===null?"planned_window":"measured_audio",issues:[...(!valid?["Invalid timing ratio"]:[]),...(audioIssue?[audioIssue]:[])]};
+   }));
    timeline.push({sceneId:scene.id,sceneTitle:scene.title,shotId:shot.id,shotSequence:shot.sequence,startSeconds:cursor,endSeconds:cursor+duration,durationSeconds:duration,dialogue:cues});
    cursor+=duration;
   }
@@ -35,5 +41,5 @@ export async function GET(request:Request,{params}:{params:Promise<{id:string;ep
   if(cursor===sceneStart)continue;
  }
  if(!timeline.length)issues.push("No storyboard timeline");
- return NextResponse.json({episodeId,approved:!!approved,totalPlannedSeconds:cursor,readyForAudioMix:issues.length===0,issues,timeline,measuredSpeechTiming:false});
+ return NextResponse.json({episodeId,approved:!!approved,totalPlannedSeconds:cursor,readyForAudioMix:issues.length===0,issues,timeline,measuredSpeechTiming:true});
 }
