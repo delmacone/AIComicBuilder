@@ -31,7 +31,10 @@ export const projects = sqliteTable("projects", {
     .$defaultFn(() => new Date()),
 });
 
+export const blackfistTvSeasons = sqliteTable("blackfist_tv_seasons", { id: text("id").primaryKey(), projectId: text("project_id").notNull().references(() => projects.id, {onDelete:"cascade"}), seasonNumber: integer("season_number").notNull(), title: text("title").notNull(), synopsis: text("synopsis").notNull().default(""), createdAt: integer("created_at",{mode:"timestamp"}).notNull().$defaultFn(()=>new Date()) });
+
 export const episodes = sqliteTable("episodes", {
+  blackfistSeasonId: text("blackfist_season_id").references(() => blackfistTvSeasons.id),
   id: text("id").primaryKey(),
   projectId: text("project_id")
     .notNull()
