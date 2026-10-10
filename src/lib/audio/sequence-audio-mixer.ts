@@ -21,7 +21,18 @@ export async function mixSequenceAudio(inputs:SequenceMixInput[],durationSeconds
  const filters:string[]=[];const labels:string[]=[];
  const dialogueWindows=inputs.filter(x=>x.kind==="dialogue").map(x=>({start:Math.max(0,x.startSeconds),end:Math.min(durationSeconds,x.endSeconds??x.startSeconds+10)})).filter(x=>x.end>x.start);
  const duckEnabled=options?.duckMusicUnderDialogue===true&&dialogueWindows.length>0;
- inputs.forEach((x,i)=>{const vol=x.volume??(x.kind==="dialogue"?1:x.kind==="sfx"?.85:.28);const delay=Math.max(0,Math.round(x.startSeconds*1000));const label=`a${i}`;const fade=duckEnabled&&x.kind==="music"?dialogueWindows.reduce((expr,w)=>`if(between(t,${w.start.toFixed(3)},${w.end.toFixed(3)}),0.3,${expr})`,"1"):"1";filters.push(`[${i}:a]adelay=${delay}|${delay},volume=${vol}${duckEnabled&&x.kind==="music"?`:eval=frame`:""}${duckEnabled&&x.kind==="music"?`,volume=\u0027${fade}\u0027:eval=frame`:""}[${label}]`);labels.push(`[${label}]`)});
+ inputs.forEach((x,i)=>{
+  const vol=x.volume??(x.kind==="dialogue"?1:x.kind==="sfx"?.85:.28);
+  const delay=Math.max(0,Math.round(x.startSeconds*1000));
+  const label=`a${i}`;
+  let filter=`[${i}:a]adelay=${delay}|${delay},volume=${vol}`;
+  if(duckEnabled&&x.kind==="music"){
+   const expression=dialogueWindows.reduce((acc,w)=>`if(between(t\\,${w.start.toFixed(3)}\\,${w.end.toFixed(3)})\\,0.3\\,${acc})`,"1");
+   filter+=`,volume='${expression}':eval=frame`;
+  }
+  filters.push(`${filter}[${label}]`);
+  labels.push(`[${label}]`);
+ });
  filters.push(`${labels.join("")}amix=inputs=${labels.length}:duration=longest:normalize=0,alimiter=limit=0.95[mix]`);
  await new Promise<void>((resolve,reject)=>cmd.complexFilter(filters,"mix").outputOptions(["-y","-t",String(durationSeconds),"-c:a","libmp3lame","-b:a","192k"]).output(out).on("end",()=>resolve()).on("error",e=>reject(new Error(`Sequence audio mix failed: ${e.message}`))).run());
  const rel=path.relative(uploadDir,out).split(path.sep).join("/");return {filePath:out,url:`/api/uploads/${rel}`};
