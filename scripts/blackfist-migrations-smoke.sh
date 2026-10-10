@@ -33,4 +33,22 @@ assert db.execute("SELECT status FROM blackfist_episode_review_masters WHERE id=
 db.execute("DELETE FROM episodes WHERE id='e'")
 assert db.execute("SELECT count(*) FROM blackfist_episode_review_masters").fetchone()[0]==0
 print("Review-master migration SQLite insert/default/index/cascade smoke test passed")
+# Simulate a populated installation before the new migration: preserve existing rows.
+upgrade=sqlite3.connect(":memory:")
+upgrade.execute("PRAGMA foreign_keys=ON")
+upgrade.executescript("""
+ CREATE TABLE projects(id TEXT PRIMARY KEY, title TEXT NOT NULL);
+ CREATE TABLE episodes(id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id));
+ CREATE TABLE blackfist_screenplay_drafts(id TEXT PRIMARY KEY, episode_id TEXT NOT NULL, status TEXT NOT NULL);
+ INSERT INTO projects VALUES ('existing-project','General Jamaica — The Storm');
+ INSERT INTO episodes VALUES ('existing-episode','existing-project');
+ INSERT INTO blackfist_screenplay_drafts VALUES ('existing-script','existing-episode','approved');
+""")
+before=list(upgrade.execute("SELECT projects.id,episodes.id,blackfist_screenplay_drafts.id FROM projects JOIN episodes ON episodes.project_id=projects.id JOIN blackfist_screenplay_drafts ON blackfist_screenplay_drafts.episode_id=episodes.id"))
+upgrade.executescript((root/"0066_blackfist_episode_review_masters.sql").read_text())
+after=list(upgrade.execute("SELECT projects.id,episodes.id,blackfist_screenplay_drafts.id FROM projects JOIN episodes ON episodes.project_id=projects.id JOIN blackfist_screenplay_drafts ON blackfist_screenplay_drafts.episode_id=episodes.id"))
+assert before==after, "Existing episode data changed during upgrade"
+assert upgrade.execute("PRAGMA integrity_check").fetchone()[0]=="ok"
+assert upgrade.execute("PRAGMA foreign_key_check").fetchall()==[]
+print("Populated database upgrade preserves existing project, episode and screenplay records")
 PY
