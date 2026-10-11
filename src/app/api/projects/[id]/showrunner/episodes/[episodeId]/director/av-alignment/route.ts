@@ -8,13 +8,19 @@ import {episodes,blackfistEpisodeAssemblies,blackfistEpisodeSoundtracks} from "@
 export async function GET(request:Request,{params}:{params:Promise<{id:string;episodeId:string}>}){
  const {id,episodeId}=await params;
  if(!(await assertProjectOwnership(request,id)))return NextResponse.json({error:"Not found"},{status:404});
+ const url=new URL(request.url);
+ const selectedVideoUrl=url.searchParams.get("videoUrl");
+ const selectedAudioUrl=url.searchParams.get("soundtrackUrl");
+ if((selectedVideoUrl&&!selectedAudioUrl)||(!selectedVideoUrl&&selectedAudioUrl))return NextResponse.json({error:"Select both saved video and soundtrack versions"},{status:400});
  const [episode]=await db.select({id:episodes.id,targetDuration:episodes.targetDuration}).from(episodes).where(and(eq(episodes.id,episodeId),eq(episodes.projectId,id))).limit(1);
  if(!episode)return NextResponse.json({error:"Episode not found"},{status:404});
  const videos=await db.select().from(blackfistEpisodeAssemblies).where(and(eq(blackfistEpisodeAssemblies.projectId,id),eq(blackfistEpisodeAssemblies.episodeId,episodeId))).orderBy(desc(blackfistEpisodeAssemblies.createdAt)).limit(20);
- const video=videos[0];
+ const video=selectedVideoUrl?videos.find(v=>v.fileUrl===selectedVideoUrl):videos[0];
  const soundtracks=await db.select().from(blackfistEpisodeSoundtracks).where(and(eq(blackfistEpisodeSoundtracks.projectId,id),eq(blackfistEpisodeSoundtracks.episodeId,episodeId))).orderBy(desc(blackfistEpisodeSoundtracks.createdAt)).limit(20);
- const audio=soundtracks[0];
+ const audio=selectedAudioUrl?soundtracks.find(a=>a.fileUrl===selectedAudioUrl):soundtracks[0];
  const issues:string[]=[];
+ if(selectedVideoUrl&&!video)issues.push("Selected video version is not among the latest 20 saved assemblies");
+ if(selectedAudioUrl&&!audio)issues.push("Selected soundtrack version is not among the latest 20 saved soundtracks");
  if(!video)issues.push("No assembled episode video saved");
  if(!audio)issues.push("No mixed episode soundtrack saved");
  const videoSeconds=video?.durationSeconds??null;
