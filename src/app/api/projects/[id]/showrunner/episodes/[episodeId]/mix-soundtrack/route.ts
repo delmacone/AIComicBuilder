@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
+import fs from "node:fs";
+import path from "node:path";
+import { id as genId } from "@/lib/id";
 import { and,asc,eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { assertProjectOwnership } from "@/lib/assert-project-ownership";
-import { blackfistScreenplayDrafts,scenes,shots,dialogues,characters,episodeCharacters } from "@/lib/db/schema";
+import { blackfistScreenplayDrafts,blackfistEpisodeSoundtracks,scenes,shots,dialogues,characters,episodeCharacters } from "@/lib/db/schema";
 import { probeDialogueSeconds } from "@/lib/audio/dialogue-duration";
 import { mixSequenceAudio,type SequenceMixInput } from "@/lib/audio/sequence-audio-mixer";
 
@@ -49,6 +52,9 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string;e
  }
  if(!inputs.length)issues.push("No mixable audio assets");
  if(issues.length)return NextResponse.json({error:"Soundtrack review required",issues},{status:409});
- try{const mix=await mixSequenceAudio(inputs,cursor,{duckMusicUnderDialogue:true});return NextResponse.json({episodeId,status:"review_required",mixUrl:mix.url,durationSeconds:cursor,dialogueInputs:inputs.filter(x=>x.kind==="dialogue").length,soundInputs:body.cues.length,musicDucking:"350ms ramp down/up around merged dialogue windows; music reduced to 30% during speech",message:"Review soundtrack created; final editorial approval required"})}
+ try{const mix=await mixSequenceAudio(inputs,cursor,{duckMusicUnderDialogue:true});
+  try { await db.insert(blackfistEpisodeSoundtracks).values({id:genId(),projectId:id,episodeId,fileUrl:mix.url,durationSeconds:cursor,status:"review_required"}); }
+  catch(error){const root=path.resolve(process.env.UPLOAD_DIR||"./uploads");if(mix.url.startsWith("/api/uploads/")){const file=path.resolve(root,mix.url.slice("/api/uploads/".length));if(file.startsWith(root+path.sep))try{fs.unlinkSync(file)}catch{}}throw error}
+  return NextResponse.json({episodeId,status:"review_required",mixUrl:mix.url,durationSeconds:cursor,dialogueInputs:inputs.filter(x=>x.kind==="dialogue").length,soundInputs:body.cues.length,musicDucking:"350ms ramp down/up around merged dialogue windows; music reduced to 30% during speech",message:"Review soundtrack created; final editorial approval required"})}
  catch(error){return NextResponse.json({error:error instanceof Error?error.message:"Soundtrack mix failed"},{status:500})}
 }
