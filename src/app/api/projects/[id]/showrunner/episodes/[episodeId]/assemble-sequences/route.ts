@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import fs from "node:fs";
 import { and, eq, asc } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { assertProjectOwnership } from "@/lib/assert-project-ownership";
-import { blackfistSequences, episodes, scenes } from "@/lib/db/schema";
+import { blackfistSequences, blackfistEpisodeAssemblies, episodes, scenes } from "@/lib/db/schema";
+import { id as genId } from "@/lib/id";
 import { assembleApprovedSequences } from "@/lib/video/blackfist-episode-assemble";
 
 function hasHumanApproval(raw:string):boolean {
@@ -20,14 +22,22 @@ export async function POST(request: Request, { params }: { params: Promise<{id:s
  if (!sceneRows.length) return NextResponse.json({error:"No episode scenes to assemble"},{status:409});
  const sequences=await db.select().from(blackfistSequences).where(and(eq(blackfistSequences.projectId,id),eq(blackfistSequences.episodeId,episodeId)));
  const urls:string[]=[];
+ const sequenceIds:string[]=[];
  for (const scene of sceneRows) {
   const approved=sequences.filter(s=>s.sceneId===scene.id&&s.avStatus==="approved"&&s.finalVideoUrl&&hasHumanApproval(s.avQc));
   if (approved.length!==1) return NextResponse.json({error:`Scene "${scene.title||scene.id}" needs exactly one human-approved final AV sequence; found ${approved.length}`},{status:409});
   urls.push(approved[0].finalVideoUrl!);
+  sequenceIds.push(approved[0].id);
  }
  if (sequences.some(s=>!s.sceneId||!sceneRows.some(scene=>scene.id===s.sceneId))) return NextResponse.json({error:"Episode has unassigned sequence(s); review before assembly"},{status:409});
  try {
   const result=await assembleApprovedSequences(urls,id);
+  try {
+   await db.insert(blackfistEpisodeAssemblies).values({id:genId(),projectId:id,episodeId,fileUrl:result.url,sequenceIds:JSON.stringify(sequenceIds),sceneCount:sceneRows.length,durationSeconds:result.durationSeconds,status:"review_required"});
+  } catch(error) {
+   try { fs.unlinkSync(result.filePath); } catch {}
+   throw error;
+  }
   return NextResponse.json({episodeId,sceneCount:sceneRows.length,...result,status:"review_required",published:false});
  } catch(error) {
   return NextResponse.json({error:error instanceof Error?error.message:"Episode assembly failed"},{status:422});
