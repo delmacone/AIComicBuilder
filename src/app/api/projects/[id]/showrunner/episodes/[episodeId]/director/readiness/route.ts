@@ -30,5 +30,7 @@ export async function GET(request:Request,{params}:{params:Promise<{id:string;ep
   {key:"runtime",title:"20–22 minute runtime",issues:plannedSeconds>=1200&&plannedSeconds<=1320?[]:["Storyboard runtime is "+plannedSeconds+" seconds; target is 1200–1320"]},
   {key:"reviewMaster",title:"Unpublished review MP4",issues:master?[]:["Create unpublished review MP4 after editorial approval"]},
  ];
- return NextResponse.json({episodeId,plannedSeconds,sceneCount:sceneRows.length,shotCount:shotRows.length,dialogueCount:dialogueRows.length,stages:stages.map(s=>({...s,ready:s.issues.length===0})),completedStages:stages.filter(s=>s.issues.length===0).length,totalStages:stages.length,readyForReview:stages.every(s=>s.issues.length===0),mediaGenerated:false});
+ const checklist=stages.flatMap((stage,stageIndex)=>stage.issues.map((issue,issueIndex)=>({id:stage.key+"-"+issueIndex,stage:stage.key,stageTitle:stage.title,priority:stageIndex+1,action:issue})));
+ const nextAction=checklist[0]||null;
+ return NextResponse.json({checklist,nextAction,episodeId,plannedSeconds,sceneCount:sceneRows.length,shotCount:shotRows.length,dialogueCount:dialogueRows.length,stages:stages.map(s=>({...s,ready:s.issues.length===0})),completedStages:stages.filter(s=>s.issues.length===0).length,totalStages:stages.length,readyForReview:stages.every(s=>s.issues.length===0),mediaGenerated:false});
 }
