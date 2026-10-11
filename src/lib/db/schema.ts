@@ -570,3 +570,13 @@ export const blackfistEpisodeSoundtracks = sqliteTable("blackfist_episode_soundt
  status: text("status").notNull().default("review_required"),
  createdAt: integer("created_at",{mode:"timestamp"}).notNull().$defaultFn(()=>new Date()),
 });
+
+/** Non-destructive shot direction proposals awaiting human editorial review. */
+export const blackfistDirectorDrafts = sqliteTable("blackfist_director_drafts", {
+ id: text("id").primaryKey(),
+ projectId: text("project_id").notNull().references(() => projects.id, {onDelete:"cascade"}),
+ episodeId: text("episode_id").notNull().references(() => episodes.id, {onDelete:"cascade"}),
+ proposalsJson: text("proposals_json").notNull(),
+ status: text("status").notNull().default("draft_review_required"),
+ createdAt: integer("created_at",{mode:"timestamp"}).notNull().$defaultFn(()=>new Date()),
+});
