@@ -10,8 +10,10 @@ export async function GET(request:Request,{params}:{params:Promise<{id:string;ep
  if(!(await assertProjectOwnership(request,id)))return NextResponse.json({error:"Not found"},{status:404});
  const [episode]=await db.select({id:episodes.id,targetDuration:episodes.targetDuration}).from(episodes).where(and(eq(episodes.id,episodeId),eq(episodes.projectId,id))).limit(1);
  if(!episode)return NextResponse.json({error:"Episode not found"},{status:404});
- const [video]=await db.select().from(blackfistEpisodeAssemblies).where(and(eq(blackfistEpisodeAssemblies.projectId,id),eq(blackfistEpisodeAssemblies.episodeId,episodeId))).orderBy(desc(blackfistEpisodeAssemblies.createdAt)).limit(1);
- const [audio]=await db.select().from(blackfistEpisodeSoundtracks).where(and(eq(blackfistEpisodeSoundtracks.projectId,id),eq(blackfistEpisodeSoundtracks.episodeId,episodeId))).orderBy(desc(blackfistEpisodeSoundtracks.createdAt)).limit(1);
+ const videos=await db.select().from(blackfistEpisodeAssemblies).where(and(eq(blackfistEpisodeAssemblies.projectId,id),eq(blackfistEpisodeAssemblies.episodeId,episodeId))).orderBy(desc(blackfistEpisodeAssemblies.createdAt)).limit(20);
+ const video=videos[0];
+ const soundtracks=await db.select().from(blackfistEpisodeSoundtracks).where(and(eq(blackfistEpisodeSoundtracks.projectId,id),eq(blackfistEpisodeSoundtracks.episodeId,episodeId))).orderBy(desc(blackfistEpisodeSoundtracks.createdAt)).limit(20);
+ const audio=soundtracks[0];
  const issues:string[]=[];
  if(!video)issues.push("No assembled episode video saved");
  if(!audio)issues.push("No mixed episode soundtrack saved");
@@ -22,5 +24,5 @@ export async function GET(request:Request,{params}:{params:Promise<{id:string;ep
  if(videoSeconds!==null&&(videoSeconds<1200||videoSeconds>1320))issues.push("Assembled video outside the 20–22 minute production band");
  const target=episode.targetDuration||1320;
  if(videoSeconds!==null&&Math.abs(videoSeconds-target)>60)issues.push("Assembled video differs from episode target by more than 60 seconds");
- return NextResponse.json({episodeId,video:video?{id:video.id,fileUrl:video.fileUrl,durationSeconds:videoSeconds,sceneCount:video.sceneCount,status:video.status}:null,soundtrack:audio?{id:audio.id,fileUrl:audio.fileUrl,durationSeconds:soundtrackSeconds,status:audio.status}:null,targetDurationSeconds:target,driftSeconds,readyForEditorialMux:issues.length===0,issues,measurement:"Persisted assembly and soundtrack durations; not frame-by-frame gap or overlap analysis",mediaGenerated:false});
+ return NextResponse.json({episodeId,availableVideos:videos.map(v=>({id:v.id,fileUrl:v.fileUrl,durationSeconds:v.durationSeconds,createdAt:v.createdAt})),availableSoundtracks:soundtracks.map(a=>({id:a.id,fileUrl:a.fileUrl,durationSeconds:a.durationSeconds,createdAt:a.createdAt})),video:video?{id:video.id,fileUrl:video.fileUrl,durationSeconds:videoSeconds,sceneCount:video.sceneCount,status:video.status}:null,soundtrack:audio?{id:audio.id,fileUrl:audio.fileUrl,durationSeconds:soundtrackSeconds,status:audio.status}:null,targetDurationSeconds:target,driftSeconds,readyForEditorialMux:issues.length===0,issues,measurement:"Persisted assembly and soundtrack durations; not frame-by-frame gap or overlap analysis",mediaGenerated:false});
 }
