@@ -559,3 +559,14 @@ export const blackfistEpisodeAssemblies = sqliteTable("blackfist_episode_assembl
  status: text("status").notNull().default("review_required"),
  createdAt: integer("created_at",{mode:"timestamp"}).notNull().$defaultFn(()=>new Date()),
 });
+
+/** Episode-owned soundtrack master; review approval is a separate editorial step. */
+export const blackfistEpisodeSoundtracks = sqliteTable("blackfist_episode_soundtracks", {
+ id: text("id").primaryKey(),
+ projectId: text("project_id").notNull().references(() => projects.id, {onDelete:"cascade"}),
+ episodeId: text("episode_id").notNull().references(() => episodes.id, {onDelete:"cascade"}),
+ fileUrl: text("file_url").notNull().unique(),
+ durationSeconds: real("duration_seconds").notNull(),
+ status: text("status").notNull().default("review_required"),
+ createdAt: integer("created_at",{mode:"timestamp"}).notNull().$defaultFn(()=>new Date()),
+});
