@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { and,eq,desc } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { episodes,blackfistEpisodeReviewMasters,blackfistEpisodeAssemblies } from "@/lib/db/schema";
+import { episodes,blackfistEpisodeReviewMasters,blackfistEpisodeAssemblies,blackfistEpisodeSoundtracks } from "@/lib/db/schema";
 import { id as genId } from "@/lib/id";
 import { assertProjectOwnership } from "@/lib/assert-project-ownership";
 import { muxReviewedEpisode } from "@/lib/video/blackfist-soundtrack-mux";
@@ -28,6 +28,8 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string;e
  if(typeof body.videoUrl!=="string"||typeof body.soundtrackUrl!=="string")return NextResponse.json({error:"Video and soundtrack URLs required"},{status:400});
  const [ownedAssembly]=await db.select({id:blackfistEpisodeAssemblies.id}).from(blackfistEpisodeAssemblies).where(and(eq(blackfistEpisodeAssemblies.projectId,id),eq(blackfistEpisodeAssemblies.episodeId,episodeId),eq(blackfistEpisodeAssemblies.fileUrl,body.videoUrl))).limit(1);
  if(!ownedAssembly)return NextResponse.json({error:"Select an episode video assembled and saved for this project and episode"},{status:409});
+ const [ownedSoundtrack]=await db.select({id:blackfistEpisodeSoundtracks.id}).from(blackfistEpisodeSoundtracks).where(and(eq(blackfistEpisodeSoundtracks.projectId,id),eq(blackfistEpisodeSoundtracks.episodeId,episodeId),eq(blackfistEpisodeSoundtracks.fileUrl,body.soundtrackUrl))).limit(1);
+ if(!ownedSoundtrack)return NextResponse.json({error:"Select a soundtrack mixed and saved for this project and episode"},{status:409});
  try{
   const result=await muxReviewedEpisode(body.videoUrl,body.soundtrackUrl,id,episodeId);
   try { await db.insert(blackfistEpisodeReviewMasters).values({id:genId(),projectId:id,episodeId,videoSourceUrl:body.videoUrl,soundtrackSourceUrl:body.soundtrackUrl,fileUrl:result.fileUrl,videoDurationSeconds:result.videoDurationSeconds,soundtrackDurationSeconds:result.soundtrackDurationSeconds,status:"review_required"}); } catch(error) {
