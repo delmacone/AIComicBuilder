@@ -484,6 +484,13 @@
       "when": 1779909600000,
       "tag": "0068_blackfist_episode_soundtracks",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1779996000000,
+      "tag": "0069_blackfist_director_drafts",
+      "breakpoints": true
     }
   ]
 }
