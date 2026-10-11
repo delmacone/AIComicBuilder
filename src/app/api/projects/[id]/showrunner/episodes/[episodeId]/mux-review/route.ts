@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { and,eq,desc } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { episodes,blackfistEpisodeReviewMasters } from "@/lib/db/schema";
+import { episodes,blackfistEpisodeReviewMasters,blackfistEpisodeAssemblies } from "@/lib/db/schema";
 import { id as genId } from "@/lib/id";
 import { assertProjectOwnership } from "@/lib/assert-project-ownership";
 import { muxReviewedEpisode } from "@/lib/video/blackfist-soundtrack-mux";
@@ -26,6 +26,8 @@ export async function POST(request:Request,{params}:{params:Promise<{id:string;e
  const body=await request.json().catch(()=>null) as {confirm?:boolean;videoUrl?:string;soundtrackUrl?:string;videoReviewed?:boolean;soundtrackReviewed?:boolean}|null;
  if(!body?.confirm||!body.videoReviewed||!body.soundtrackReviewed)return NextResponse.json({error:"Editor must explicitly confirm both video and soundtrack review"},{status:409});
  if(typeof body.videoUrl!=="string"||typeof body.soundtrackUrl!=="string")return NextResponse.json({error:"Video and soundtrack URLs required"},{status:400});
+ const [ownedAssembly]=await db.select({id:blackfistEpisodeAssemblies.id}).from(blackfistEpisodeAssemblies).where(and(eq(blackfistEpisodeAssemblies.projectId,id),eq(blackfistEpisodeAssemblies.episodeId,episodeId),eq(blackfistEpisodeAssemblies.fileUrl,body.videoUrl))).limit(1);
+ if(!ownedAssembly)return NextResponse.json({error:"Select an episode video assembled and saved for this project and episode"},{status:409});
  try{
   const result=await muxReviewedEpisode(body.videoUrl,body.soundtrackUrl,id,episodeId);
   try { await db.insert(blackfistEpisodeReviewMasters).values({id:genId(),projectId:id,episodeId,videoSourceUrl:body.videoUrl,soundtrackSourceUrl:body.soundtrackUrl,fileUrl:result.fileUrl,videoDurationSeconds:result.videoDurationSeconds,soundtrackDurationSeconds:result.soundtrackDurationSeconds,status:"review_required"}); } catch(error) {
