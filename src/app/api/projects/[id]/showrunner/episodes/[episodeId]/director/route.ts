@@ -13,12 +13,14 @@ export async function GET(request:Request,{params}:{params:Promise<{id:string;ep
  const assigned=await db.select({character:characters}).from(episodeCharacters).innerJoin(characters,eq(episodeCharacters.characterId,characters.id)).where(and(eq(episodeCharacters.episodeId,episodeId),eq(characters.projectId,id)));
  const cast=assigned.map(({character:c})=>({id:c.id,name:c.name,description:c.description,referenceImage:c.referenceImage,canonLockEnabled:Boolean(c.canonLockEnabled),canonVisualLock:c.canonVisualLock,voiceLockEnabled:Boolean(c.voiceLockEnabled),voiceId:c.elevenLabsVoiceId}));
  const sceneRows=await db.select({id:scenes.id,title:scenes.title,sequence:scenes.sequence}).from(scenes).where(and(eq(scenes.projectId,id),eq(scenes.episodeId,episodeId))).orderBy(asc(scenes.sequence));
- const shotRows=await db.select({id:shots.id,sceneId:shots.sceneId,sequence:shots.sequence,prompt:shots.prompt,cameraDirection:shots.cameraDirection,duration:shots.duration,continuityStatus:shots.continuityStatus}).from(shots).where(and(eq(shots.projectId,id),eq(shots.episodeId,episodeId))).orderBy(asc(shots.sequence));
+ const shotRows=await db.select({id:shots.id,sceneId:shots.sceneId,sequence:shots.sequence,prompt:shots.prompt,cameraDirection:shots.cameraDirection,duration:shots.duration,continuityStatus:shots.continuityStatus,transitionIn:shots.transitionIn,transitionOut:shots.transitionOut,motionScript:shots.motionScript,compositionGuide:shots.compositionGuide}).from(shots).where(and(eq(shots.projectId,id),eq(shots.episodeId,episodeId))).orderBy(asc(shots.sequence));
  const productionPlan=sceneRows.map(scene=>({
   sceneId:scene.id,sceneTitle:scene.title,sceneOrder:scene.sequence,
   shots:shotRows.filter(shot=>shot.sceneId===scene.id).map(shot=>({
    shotId:shot.id,shotOrder:shot.sequence,action:shot.prompt||"",
    cameraDirection:shot.cameraDirection||"cinematic",durationSeconds:shot.duration||0,
+   blockingNotes:shot.motionScript||"",compositionGuide:shot.compositionGuide||"",
+   transitionIn:shot.transitionIn||"cut",transitionOut:shot.transitionOut||"cut",
    continuityStatus:shot.continuityStatus||"pending",
    reviewRequired:shot.continuityStatus!=="passed"
   }))
