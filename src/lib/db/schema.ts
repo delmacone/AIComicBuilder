@@ -546,3 +546,16 @@ export const blackfistEpisodeReviewMasters = sqliteTable("blackfist_episode_revi
  status: text("status").notNull().default("review_required"),
  createdAt: integer("created_at",{mode:"timestamp"}).notNull().$defaultFn(()=>new Date()),
 });
+
+/** Durable ownership and provenance for unpublished episode video assemblies. */
+export const blackfistEpisodeAssemblies = sqliteTable("blackfist_episode_assemblies", {
+ id: text("id").primaryKey(),
+ projectId: text("project_id").notNull().references(() => projects.id, {onDelete:"cascade"}),
+ episodeId: text("episode_id").notNull().references(() => episodes.id, {onDelete:"cascade"}),
+ fileUrl: text("file_url").notNull().unique(),
+ sequenceIds: text("sequence_ids").notNull(),
+ sceneCount: integer("scene_count").notNull(),
+ durationSeconds: real("duration_seconds").notNull(),
+ status: text("status").notNull().default("review_required"),
+ createdAt: integer("created_at",{mode:"timestamp"}).notNull().$defaultFn(()=>new Date()),
+});
