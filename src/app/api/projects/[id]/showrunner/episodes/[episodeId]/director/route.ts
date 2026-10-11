@@ -20,7 +20,7 @@ export async function GET(request:Request,{params}:{params:Promise<{id:string;ep
    shotId:shot.id,shotOrder:shot.sequence,action:shot.prompt||"",
    cameraDirection:shot.cameraDirection||"cinematic",durationSeconds:shot.duration||0,
    continuityStatus:shot.continuityStatus||"pending",
-   reviewRequired:shot.continuityStatus!=="approved"
+   reviewRequired:shot.continuityStatus!=="passed"
   }))
  }));
  const directorBrief={show:project.title,episode:episode.title,episodeNumber:episode.sequence,idea:episode.idea||"",outline:episode.outline||"",script:episode.script||"",targetDurationSeconds:episode.targetDuration||1320,cast,productionRules:["Use only assigned characters for speaking roles unless a new actor is explicitly approved.","Preserve locked character identity, costume and voice.","Plan scenes and shots before requesting paid video generation.","Require human review of screenplay, casting, shots and final episode."]};
