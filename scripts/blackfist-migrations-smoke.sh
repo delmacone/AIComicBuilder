@@ -5,15 +5,15 @@ python3 - <<'PY'
 import json, pathlib, sqlite3
 root=pathlib.Path("drizzle")
 journal=json.loads((root/"meta/_journal.json").read_text())
-entries=[e for e in journal["entries"] if 54<=e["idx"]<=66]
-assert len(entries)==13, f"Expected 13 registered BlackFist migrations; found {len(entries)}"
-assert [e["idx"] for e in entries]==list(range(54,67))
-assert len({e["tag"] for e in entries})==13
+entries=[e for e in journal["entries"] if 54<=e["idx"]<=68]
+assert len(entries)==15, f"Expected 15 registered BlackFist migrations; found {len(entries)}"
+assert [e["idx"] for e in entries]==list(range(54,69))
+assert len({e["tag"] for e in entries})==15
 for entry in entries:
  path=root/(entry["tag"]+".sql")
  assert path.is_file(), f"Missing registered migration: {path}"
  assert path.read_text().strip(), f"Empty migration: {path}"
-print("BlackFist migrations 0054–0066 registered and present")
+print("BlackFist migrations 0054–0068 registered and present")
 # Verify review-master migration against its required parent tables and foreign keys.
 db=sqlite3.connect(":memory:")
 db.execute("PRAGMA foreign_keys=ON")
@@ -51,4 +51,28 @@ assert before==after, "Existing episode data changed during upgrade"
 assert upgrade.execute("PRAGMA integrity_check").fetchone()[0]=="ok"
 assert upgrade.execute("PRAGMA foreign_key_check").fetchall()==[]
 print("Populated database upgrade preserves existing project, episode and screenplay records")
+# Apply ownership migrations to an existing installation and validate tenant isolation.
+upgrade.executescript((root/"0067_blackfist_episode_assemblies.sql").read_text())
+upgrade.executescript((root/"0068_blackfist_episode_soundtracks.sql").read_text())
+upgrade.execute("INSERT INTO projects VALUES ('other-project','Another customer')")
+upgrade.execute("INSERT INTO episodes VALUES ('other-episode','other-project')")
+for table,suffix in [("blackfist_episode_assemblies","v"),("blackfist_episode_soundtracks","a")]:
+ for project,episode in [("existing-project","existing-episode"),("other-project","other-episode")]:
+  file_url=f"/api/uploads/{project}-{suffix}"
+  if suffix=="v":
+   upgrade.execute(f"INSERT INTO {table}(id,project_id,episode_id,file_url,sequence_ids,scene_count,duration_seconds,created_at) VALUES(?,?,?,?,?,?,?,?)",(project,project,episode,file_url,'["s1"]',1,4,123))
+  else:
+   upgrade.execute(f"INSERT INTO {table}(id,project_id,episode_id,file_url,duration_seconds,created_at) VALUES(?,?,?,?,?,?)",(project,project,episode,file_url,4,123))
+  assert upgrade.execute(f"SELECT status FROM {table} WHERE id=?",(project,)).fetchone()[0]=="review_required"
+ assert upgrade.execute(f"SELECT count(*) FROM {table} WHERE project_id='existing-project' AND episode_id='existing-episode'").fetchone()[0]==1
+ assert upgrade.execute(f"SELECT count(*) FROM {table} WHERE project_id='existing-project' AND file_url LIKE '%other-project%'").fetchone()[0]==0
+ assert any("episode_idx" in r[1] for r in upgrade.execute(f"PRAGMA index_list({table})"))
+assert before==list(upgrade.execute("SELECT projects.id,episodes.id,blackfist_screenplay_drafts.id FROM projects JOIN episodes ON episodes.project_id=projects.id JOIN blackfist_screenplay_drafts ON blackfist_screenplay_drafts.episode_id=episodes.id WHERE projects.id='existing-project'"))
+assert upgrade.execute("PRAGMA foreign_key_check").fetchall()==[]
+upgrade.execute("DELETE FROM episodes WHERE id='other-episode'")
+for table in ["blackfist_episode_assemblies","blackfist_episode_soundtracks"]:
+ assert upgrade.execute(f"SELECT count(*) FROM {table} WHERE project_id='other-project'").fetchone()[0]==0
+assert upgrade.execute("PRAGMA integrity_check").fetchone()[0]=="ok"
+print("Episode video and soundtrack ownership migrations preserve existing records, indexes and cascades")
+
 PY
