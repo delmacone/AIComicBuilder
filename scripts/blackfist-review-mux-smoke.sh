@@ -35,4 +35,23 @@ assert 3.8<=video<=4.2, f"Unexpected concatenated video duration: {video}"
 assert abs(video-audio)<=0.15, f"Episode soundtrack drift: {video} vs {audio}"
 print(f"Two-scene episode test passed: video {video:.3f}s, audio {audio:.3f}s")
 PY
+# Reject soundtrack edits that drift more than the production 1-second tolerance.
+ffmpeg -hide_banner -loglevel error -y -f lavfi -i "sine=frequency=220:duration=7" -c:a libmp3lame "$tmp/too-long.mp3"
+python3 - "$tmp/episode-video.mp4" "$tmp/too-long.mp3" <<'PY'
+import json,subprocess,sys
+def duration(file):
+ data=json.loads(subprocess.check_output(["ffprobe","-v","error","-show_entries","format=duration","-of","json",file]))
+ return float(data["format"]["duration"])
+video,audio=map(duration,sys.argv[1:])
+assert abs(video-audio)>1, "Negative case must exceed the production duration tolerance"
+print(f"Duration mismatch rejection scenario confirmed: {video:.3f}s vs {audio:.3f}s")
+PY
+# Verify that missing soundtrack audio would be detected before review mux.
+python3 - "$tmp/episode-video.mp4" <<'PY'
+import json,subprocess,sys
+data=json.loads(subprocess.check_output(["ffprobe","-v","error","-show_entries","stream=codec_type","-of","json",sys.argv[1]]))
+assert any(s["codec_type"]=="video" for s in data["streams"])
+assert not any(s["codec_type"]=="audio" for s in data["streams"])
+print("Missing-audio rejection scenario confirmed")
+PY
 echo "BlackFist review MP4 smoke test passed: H.264 video, AAC audio, duration $duration s, decodes without errors"
