@@ -8,6 +8,8 @@ on:
     paths:
       - 'src/lib/blackfist/readiness-summary.ts'
       - 'tests/blackfist-readiness-summary.test.ts'
+      - 'tests/blackfist-av-duration-readiness.test.ts'
+      - 'src/lib/blackfist/av-duration-readiness.ts'
       - '.github/workflows/blackfist-readiness.yml'
 
 permissions:
@@ -22,4 +24,4 @@ jobs:
         with:
           node-version: '22'
       - name: Run pure readiness regression tests (no secrets or paid providers)
-        run: node --experimental-strip-types --test tests/blackfist-readiness-summary.test.ts
+        run: node --experimental-strip-types --test tests/blackfist-*.test.ts
