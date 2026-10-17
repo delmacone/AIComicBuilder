@@ -1,0 +1,25 @@
+name: BlackFist Readiness Tests
+
+on:
+  push:
+    branches:
+      - blackfist-readiness-acceptance-tests
+  pull_request:
+    paths:
+      - 'src/lib/blackfist/readiness-summary.ts'
+      - 'tests/blackfist-readiness-summary.test.ts'
+      - '.github/workflows/blackfist-readiness.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run pure readiness regression tests (no secrets or paid providers)
+        run: node --experimental-strip-types --test tests/blackfist-readiness-summary.test.ts
