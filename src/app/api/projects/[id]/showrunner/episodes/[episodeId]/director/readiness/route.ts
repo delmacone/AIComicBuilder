@@ -1,6 +1,7 @@
 import {NextResponse} from "next/server";
 import {buildReadinessSummary} from "@/lib/blackfist/readiness-summary";
 import {checkAvDurationAlignment} from "@/lib/blackfist/av-duration-readiness";
+import {checkEpisodeMediaRecords} from "@/lib/blackfist/episode-media-readiness";
 import {and,eq,desc} from "drizzle-orm";
 import {db} from "@/lib/db";
 import {assertProjectOwnership} from "@/lib/assert-project-ownership";
@@ -29,16 +30,17 @@ export async function GET(request:Request,{params}:{params:Promise<{id:string;ep
  const voiceIssues=episodeDialogues.flatMap(line=>{const issues:string[]=[];const actor=castById.get(line.characterId);if(!actor)issues.push("Assign actor for dialogue "+line.id);else if(!actor.voiceLocked||!actor.voiceId)issues.push("Approve and lock voice for dialogue "+line.id);if(!line.audioUrl)issues.push("Render dialogue audio "+line.id);if(!line.text.trim())issues.push("Add text to dialogue "+line.id);return issues});
  const sceneIds=new Set(sceneRows.map(s=>s.id));
  const plannedSeconds=shotRows.reduce((sum,s)=>sum+(s.duration||0),0);
+ const mediaChecks=checkEpisodeMediaRecords(video,soundtrack,master);
  const stages=[
   {key:"screenplay",title:"Approved screenplay",issues:screenplay?[]:["Approve an episode screenplay"]},
   {key:"storyboard",title:"Scenes and storyboard",issues:[...(!sceneRows.length?["Create episode scenes"]:[]),...(!shotRows.length?["Create storyboard shots"]:[]),...shotRows.filter(s=>!s.sceneId||!sceneIds.has(s.sceneId)).map(s=>"Assign shot "+s.id+" to a scene")]},
   {key:"animation",title:"Animation and continuity",issues:shotRows.length?shotRows.filter(s=>s.status!=="completed"||s.isStale||s.continuityStatus!=="passed").map(s=>"Render or approve shot "+s.id):["Storyboard shots required"]},
   {key:"voices",title:"Voice recordings",issues:voiceIssues},
-  {key:"soundtrack",title:"Episode soundtrack",issues:soundtrack?[]:["Mix and save episode soundtrack"]},
-  {key:"video",title:"Episode video",issues:[...sequenceIssues,...(video?[]:["Assemble and save episode video"])]},
+  {key:"soundtrack",title:"Episode soundtrack",issues:mediaChecks.audioIssues},
+  {key:"video",title:"Episode video",issues:[...sequenceIssues,...mediaChecks.videoIssues]},
   {key:"alignment",title:"Final audio/video timing",issues:!video||!soundtrack?["Video and soundtrack required"]:checkAvDurationAlignment(video.durationSeconds,soundtrack.durationSeconds)},
   {key:"runtime",title:"20–22 minute runtime",issues:plannedSeconds>=1200&&plannedSeconds<=1320?[]:["Storyboard runtime is "+plannedSeconds+" seconds; target is 1200–1320"]},
-  {key:"reviewMaster",title:"Unpublished review MP4",issues:master?[]:["Create unpublished review MP4 after editorial approval"]},
+  {key:"reviewMaster",title:"Unpublished review MP4",issues:mediaChecks.reviewIssues},
  ];
  const summary=buildReadinessSummary(stages);
  return NextResponse.json({...summary,episodeId,plannedSeconds,sceneCount:sceneRows.length,shotCount:shotRows.length,dialogueCount:dialogueRows.length,mediaGenerated:false});
