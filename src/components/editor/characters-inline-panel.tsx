@@ -49,12 +49,11 @@ export function CharactersInlinePanel({
 
   useEffect(() => {
     // Auto-expand rule: condition takes precedence over localStorage at mount time
-    if (generationMode === "reference" && anyMissingRef) {
-      setOpen(true);
-      return;
-    }
-    const stored = localStorage.getItem(storageKey);
-    setOpen(stored === "true");
+    const initialOpen = generationMode === "reference" && anyMissingRef
+      ? true
+      : localStorage.getItem(storageKey) === "true";
+    // Defer initialization until after the effect; avoid synchronous effect updates.
+    queueMicrotask(() => setOpen(initialOpen));
   }, []); // only on mount
 
   function toggle() {

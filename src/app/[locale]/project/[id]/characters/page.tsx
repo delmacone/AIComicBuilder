@@ -56,7 +56,8 @@ export default function CharactersPage({
   }, [projectId]);
 
   useEffect(() => {
-    fetchData();
+    // Run data loading asynchronously after the effect rather than updating state synchronously.
+    void Promise.resolve().then(fetchData);
   }, [fetchData]);
 
   const mainCharacters = useMemo(
