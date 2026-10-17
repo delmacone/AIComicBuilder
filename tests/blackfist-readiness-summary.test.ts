@@ -74,3 +74,21 @@ test("readiness evaluation does not mutate stage fixtures", () => {
   buildReadinessSummary(stages);
   assert.equal(JSON.stringify(stages), snapshot);
 });
+
+test("missing required stage cannot be review-ready", () => {
+  const result = buildReadinessSummary(fixture().filter(stage => stage.key !== "voices"));
+  assert.equal(result.completedStages, 8);
+  assert.equal(result.readyForReview, false);
+});
+
+test("duplicate stage cannot be review-ready", () => {
+  const stages = fixture();
+  const result = buildReadinessSummary([...stages, stages[0]]);
+  assert.equal(result.readyForReview, false);
+});
+
+test("unknown stage cannot replace a required stage", () => {
+  const stages = fixture().filter(stage => stage.key !== "voices");
+  stages.push({ key: "unknown", title: "Unknown", issues: [] });
+  assert.equal(buildReadinessSummary(stages).readyForReview, false);
+});
