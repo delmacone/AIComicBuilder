@@ -1,5 +1,6 @@
 import {NextResponse} from "next/server";
 import {buildReadinessSummary} from "@/lib/blackfist/readiness-summary";
+import {checkAvDurationAlignment} from "@/lib/blackfist/av-duration-readiness";
 import {and,eq,desc} from "drizzle-orm";
 import {db} from "@/lib/db";
 import {assertProjectOwnership} from "@/lib/assert-project-ownership";
@@ -35,7 +36,7 @@ export async function GET(request:Request,{params}:{params:Promise<{id:string;ep
   {key:"voices",title:"Voice recordings",issues:voiceIssues},
   {key:"soundtrack",title:"Episode soundtrack",issues:soundtrack?[]:["Mix and save episode soundtrack"]},
   {key:"video",title:"Episode video",issues:[...sequenceIssues,...(video?[]:["Assemble and save episode video"])]},
-  {key:"alignment",title:"Final audio/video timing",issues:!video||!soundtrack?["Video and soundtrack required"]:Math.abs(video.durationSeconds-soundtrack.durationSeconds)>0.25?["Audio/video duration mismatch exceeds 0.25 seconds"]:[]},
+  {key:"alignment",title:"Final audio/video timing",issues:!video||!soundtrack?["Video and soundtrack required"]:checkAvDurationAlignment(video.durationSeconds,soundtrack.durationSeconds)},
   {key:"runtime",title:"20–22 minute runtime",issues:plannedSeconds>=1200&&plannedSeconds<=1320?[]:["Storyboard runtime is "+plannedSeconds+" seconds; target is 1200–1320"]},
   {key:"reviewMaster",title:"Unpublished review MP4",issues:master?[]:["Create unpublished review MP4 after editorial approval"]},
  ];
