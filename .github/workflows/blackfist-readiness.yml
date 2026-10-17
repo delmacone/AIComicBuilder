@@ -10,6 +10,8 @@ on:
       - 'tests/blackfist-readiness-summary.test.ts'
       - 'tests/blackfist-av-duration-readiness.test.ts'
       - 'src/lib/blackfist/av-duration-readiness.ts'
+      - 'src/lib/blackfist/episode-media-readiness.ts'
+      - 'tests/blackfist-episode-media-readiness.test.ts'
       - '.github/workflows/blackfist-readiness.yml'
 
 permissions:
