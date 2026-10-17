@@ -38,7 +38,7 @@ export async function GET(request:Request,{params}:{params:Promise<{id:string;ep
   {key:"voices",title:"Voice recordings",issues:voiceIssues},
   {key:"soundtrack",title:"Episode soundtrack",issues:mediaChecks.audioIssues},
   {key:"video",title:"Episode video",issues:[...sequenceIssues,...mediaChecks.videoIssues]},
-  {key:"alignment",title:"Final audio/video timing",issues:!video||!soundtrack?["Video and soundtrack required"]:checkAvDurationAlignment(video.durationSeconds,soundtrack.durationSeconds)},
+  {key:"alignment",title:"Final audio/video timing",issues:!video||!soundtrack?["Video and soundtrack required"]:[...(mediaChecks.videoIssues.length||mediaChecks.audioIssues.length?["Video and soundtrack need saved file URLs"]:[]),...checkAvDurationAlignment(video.durationSeconds,soundtrack.durationSeconds)]},
   {key:"runtime",title:"20–22 minute runtime",issues:plannedSeconds>=1200&&plannedSeconds<=1320?[]:["Storyboard runtime is "+plannedSeconds+" seconds; target is 1200–1320"]},
   {key:"reviewMaster",title:"Unpublished review MP4",issues:mediaChecks.reviewIssues},
  ];
