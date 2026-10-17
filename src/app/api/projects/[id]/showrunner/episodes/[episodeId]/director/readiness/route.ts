@@ -1,4 +1,5 @@
 import {NextResponse} from "next/server";
+import {buildReadinessSummary} from "@/lib/blackfist/readiness-summary";
 import {and,eq,desc} from "drizzle-orm";
 import {db} from "@/lib/db";
 import {assertProjectOwnership} from "@/lib/assert-project-ownership";
@@ -38,14 +39,6 @@ export async function GET(request:Request,{params}:{params:Promise<{id:string;ep
   {key:"runtime",title:"20–22 minute runtime",issues:plannedSeconds>=1200&&plannedSeconds<=1320?[]:["Storyboard runtime is "+plannedSeconds+" seconds; target is 1200–1320"]},
   {key:"reviewMaster",title:"Unpublished review MP4",issues:master?[]:["Create unpublished review MP4 after editorial approval"]},
  ];
- const isReady=(key:string)=>stages.find(stage=>stage.key===key)?.issues.length===0;
- const milestones=[
-  {key:"animation",title:"Animation production",ready:!!isReady("screenplay")&&!!isReady("storyboard"),blockers:stages.filter(stage=>["screenplay","storyboard"].includes(stage.key)).flatMap(stage=>stage.issues)},
-  {key:"audio",title:"Audio mixing",ready:!!isReady("screenplay")&&!!isReady("voices"),blockers:stages.filter(stage=>["screenplay","voices"].includes(stage.key)).flatMap(stage=>stage.issues)},
-  {key:"assembly",title:"Final video assembly",ready:!!isReady("screenplay")&&!!isReady("storyboard")&&!!isReady("animation")&&!!isReady("runtime")&&sequenceIssues.length===0,blockers:stages.filter(stage=>["screenplay","storyboard","animation","runtime"].includes(stage.key)).flatMap(stage=>stage.issues).concat(sequenceIssues)},
-  {key:"editorial",title:"Editorial review",ready:!!isReady("video")&&!!isReady("soundtrack")&&!!isReady("alignment")&&!!isReady("reviewMaster"),blockers:stages.filter(stage=>["video","soundtrack","alignment","reviewMaster"].includes(stage.key)).flatMap(stage=>stage.issues)},
- ];
- const checklist=stages.flatMap((stage,stageIndex)=>stage.issues.map((issue,issueIndex)=>({id:stage.key+"-"+issueIndex,stage:stage.key,stageTitle:stage.title,priority:stageIndex+1,action:issue})));
- const nextAction=checklist[0]||null;
- return NextResponse.json({milestones,checklist,nextAction,episodeId,plannedSeconds,sceneCount:sceneRows.length,shotCount:shotRows.length,dialogueCount:dialogueRows.length,stages:stages.map(s=>({...s,ready:s.issues.length===0})),completedStages:stages.filter(s=>s.issues.length===0).length,totalStages:stages.length,readyForReview:stages.every(s=>s.issues.length===0),mediaGenerated:false});
+ const summary=buildReadinessSummary(stages);
+ return NextResponse.json({...summary,episodeId,plannedSeconds,sceneCount:sceneRows.length,shotCount:shotRows.length,dialogueCount:dialogueRows.length,mediaGenerated:false});
 }
