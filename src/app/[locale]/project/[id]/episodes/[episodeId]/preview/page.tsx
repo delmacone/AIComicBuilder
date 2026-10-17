@@ -40,7 +40,7 @@ export default function EpisodePreviewPage() {
 
   const [assembling, setAssembling] = useState(false);
   const [selectedShot, setSelectedShot] = useState(0);
-  const [videoValid, setVideoValid] = useState<boolean | null>(null);
+  const [videoCheck, setVideoCheck] = useState<{ url: string; valid: boolean } | null>(null);
   const checkedUrl = useRef<string | null>(null);
 
   const finalVideoUrl = project?.finalVideoUrl ?? null;
@@ -51,21 +51,17 @@ export default function EpisodePreviewPage() {
   const hasReferenceVideos = project?.shots.some((s) => getReferenceVideoUrl(s)) ?? false;
   const hasBothModes = hasKeyframeVideos && hasReferenceVideos;
 
-  const [previewMode, setPreviewMode] = useState<"keyframe" | "reference">(generationMode);
-
-  // Sync previewMode when project loads
-  useEffect(() => {
-    if (project) setPreviewMode(project.generationMode ?? "keyframe");
-  }, [project?.generationMode]);
+  const [modeOverride, setModeOverride] = useState<{ origin: string; mode: "keyframe" | "reference" } | null>(null);
+  const previewMode = modeOverride?.origin === generationMode ? modeOverride.mode : generationMode;
 
   // Check if final video file actually exists
   useEffect(() => {
-    if (!finalVideoUrl) { setVideoValid(null); return; }
+    if (!finalVideoUrl) return;
     if (checkedUrl.current === finalVideoUrl) return;
     checkedUrl.current = finalVideoUrl;
     fetch(uploadUrl(finalVideoUrl), { method: "HEAD" })
-      .then((res) => setVideoValid(res.ok))
-      .catch(() => setVideoValid(false));
+      .then((res) => setVideoCheck({ url: finalVideoUrl, valid: res.ok }))
+      .catch(() => setVideoCheck({ url: finalVideoUrl, valid: false }));
   }, [finalVideoUrl]);
 
   if (!project) return null;
@@ -80,7 +76,7 @@ export default function EpisodePreviewPage() {
   const allShotsHaveVideo = project.shots.length > 0 && project.shots.every((s) => getVideoUrl(s));
   const completedVideos = shotsWithVideo.length;
   const currentShot = shotsWithVideo[selectedShot];
-  const hasValidVideo = finalVideoUrl && videoValid === true;
+  const hasValidVideo = finalVideoUrl && videoCheck?.url === finalVideoUrl && videoCheck.valid === true;
 
   async function handleAssemble() {
     if (!project) return;
@@ -110,7 +106,7 @@ export default function EpisodePreviewPage() {
   }
 
   function handleModeSwitch(mode: "keyframe" | "reference") {
-    setPreviewMode(mode);
+    setModeOverride({ origin: generationMode, mode });
     setSelectedShot(0);
   }
 
