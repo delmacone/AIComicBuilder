@@ -92,3 +92,23 @@ test("unknown stage cannot replace a required stage", () => {
   stages.push({ key: "unknown", title: "Unknown", issues: [] });
   assert.equal(buildReadinessSummary(stages).readyForReview, false);
 });
+
+test("missing required stage produces an actionable configuration blocker", () => {
+  const result = buildReadinessSummary(fixture().filter(stage => stage.key !== "voices"));
+  assert.equal(result.nextAction?.stage, "structure");
+  assert.match(result.nextAction?.action ?? "", /Missing required production stage: voices/);
+});
+
+test("duplicate stage produces an actionable configuration blocker", () => {
+  const stages = fixture();
+  const result = buildReadinessSummary([...stages, stages[0]]);
+  assert.equal(result.nextAction?.stage, "structure");
+  assert.match(result.nextAction?.action ?? "", /Duplicate production stage: screenplay/);
+});
+
+test("unknown stage produces an actionable configuration blocker", () => {
+  const stages = fixture();
+  stages[3] = {key: "alien", title: "Unknown", issues: []};
+  const result = buildReadinessSummary(stages);
+  assert.ok(result.checklist.some(item => /Unknown production stage: alien/.test(item.action)));
+});
