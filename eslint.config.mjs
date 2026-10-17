@@ -8,9 +8,6 @@ const eslintConfig = defineConfig([
   {
     rules: {
       "@typescript-eslint/no-unused-vars": "warn",
-      "react-hooks/set-state-in-effect": "warn",
-      "react-hooks/purity": "warn",
-      "react-hooks/refs": "warn",
     },
   },
   // Override default ignores of eslint-config-next.
